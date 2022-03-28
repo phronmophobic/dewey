@@ -1,0 +1,26 @@
+{:paths ["src" "resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        clj-http/clj-http {:mvn/version "3.12.3"}
+        }
+ :aliases
+ {:test {:extra-paths ["test"]
+         :extra-deps {org.clojure/test.check {:mvn/version "1.1.0"}}}
+
+  :project
+  {:extra-deps {com.phronemophobic/membrane {:mvn/version "0.9.31.8-beta"}
+                com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
+                com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}}}
+  :runner
+  {:extra-deps {io.github.cognitect-labs/test-runner
+                {:git/url "https://github.com/cognitect-labs/test-runner"
+                 :sha "2d69f33d7980c3353b246c28f72ffeafbd9f2fab"}}
+   :exec-fn cognitect.test-runner.api/test}
+  :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.216"}}
+        :exec-fn hf.depstar/jar
+        :exec-args {:jar "dewey.jar" :sync-pom true}}
+  :install {:replace-deps {slipset/deps-deploy {:mvn/version "0.1.5"}}
+            :exec-fn deps-deploy.deps-deploy/deploy
+            :exec-args {:installer :local :artifact "dewey.jar"}}
+  :deploy {:replace-deps {slipset/deps-deploy {:mvn/version "0.1.5"}}
+           :exec-fn deps-deploy.deps-deploy/deploy
+           :exec-args {:installer :remote :artifact "dewey.jar"}}}}
