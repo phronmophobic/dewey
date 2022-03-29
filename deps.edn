@@ -12,11 +12,13 @@
   {:extra-deps {com.phronemophobic/membrane {:mvn/version "0.9.31.8-beta"}
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
                 com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}}}
-  :runner
-  {:extra-deps {io.github.cognitect-labs/test-runner
-                {:git/url "https://github.com/cognitect-labs/test-runner"
-                 :sha "2d69f33d7980c3353b246c28f72ffeafbd9f2fab"}}
-   :exec-fn cognitect.test-runner.api/test}
+
+  :update-clojure-repos-index
+  {:exec-fn com.phronemophobic.dewey/update-clojure-repo-index}
+
+  :download-deps
+  {:exec-fn com.phronemophobic.dewey/download-deps}
+
   :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.216"}}
         :exec-fn hf.depstar/jar
         :exec-args {:jar "dewey.jar" :sync-pom true}}
