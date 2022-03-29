@@ -136,27 +136,31 @@
 (defn sanitize [s]
   (str/replace s #"[^a-zA-Z0-9_.-]" "_"))
 
+(defn load-all-repos []
+  (with-open [rdr (io/reader (io/file (release-dir) "all-repos.edn"))
+                                rdr (PushbackReader. rdr)]
+                      (edn/read rdr)))
+
 (defn download-deps
-  ([]
-   (let [all-repos (with-open [rdr (io/reader (io/file (release-dir) "all-repos.edn"))
-                               rdr (PushbackReader. rdr)]
-                     (edn/read rdr))]
-     (download-deps all-repos)))
-  ([repos]
-   (let [deps-dir (io/file (release-dir) "deps")
+  ([opts]
+   (let [repos (or (:repos opts)
+                   (load-all-repos))
+         repo-count (count repos)
+         deps-dir (io/file (release-dir) "deps")
          ;; default rate limit is 5k/hour
          ;; aiming for 4.5k/hour since there's no good feedback mechanism
-         chunks (partition-all 4500 repos)]
+         chunks (partition-all 4500
+                               (map-indexed vector repos))]
      (.mkdirs deps-dir)
-     (doseq [[sleep? chunk] (map vector
+     (doseq [[chunk sleep?] (map vector
                                  chunks
                                  (concat (map (constantly true) (butlast chunks))
                                          [false]))]
-       (doseq [repo chunk]
+       (doseq [[i repo] chunk]
          (try+
           (let [name (:name repo)
                 owner (-> repo :owner :login)
-                _ (print "checking " name owner "...")
+                _ (print i "/" repo-count  " checking " name owner "...")
                 result (http/request (with-auth
                                        {:url (deps-url repo)
                                         :method :get
