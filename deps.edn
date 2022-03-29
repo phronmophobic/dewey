@@ -19,6 +19,12 @@
   :download-deps
   {:exec-fn com.phronemophobic.dewey/download-deps}
 
+  :update-tag-index
+  {:exec-fn com.phronemophobic.dewey/update-tag-index}
+
+  :update-available-git-libs-index
+  {:exec-fn com.phronemophobic.dewey/update-available-git-libs-index}
+
   :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.216"}}
         :exec-fn hf.depstar/jar
         :exec-args {:jar "dewey.jar" :sync-pom true}}

@@ -141,17 +141,25 @@
                                 rdr (PushbackReader. rdr)]
                       (edn/read rdr)))
 
+(defn deps-dir []
+  (io/file (release-dir) "deps"))
+
+(defn repo->deps-file [repo]
+  (io/file (deps-dir)
+           (sanitize (-> repo :owner :login))
+           (sanitize (:name repo))
+           "deps.edn"))
+
 (defn download-deps
   ([opts]
    (let [repos (or (:repos opts)
                    (load-all-repos))
          repo-count (count repos)
-         deps-dir (io/file (release-dir) "deps")
          ;; default rate limit is 5k/hour
          ;; aiming for 4.5k/hour since there's no good feedback mechanism
          chunks (partition-all 4500
                                (map-indexed vector repos))]
-     (.mkdirs deps-dir)
+     (.mkdirs (deps-dir))
      (doseq [[chunk sleep?] (map vector
                                  chunks
                                  (concat (map (constantly true) (butlast chunks))
@@ -165,11 +173,8 @@
                                        {:url (deps-url repo)
                                         :method :get
                                         :as :stream}))
-                output-dir (io/file deps-dir
-                                    (sanitize owner)
-                                    (sanitize name))
-                output-file (io/file output-dir "deps.edn")]
-            (.mkdirs output-dir)
+                output-file (repo->deps-file repo)]
+            (.mkdirs (.getParentFile output-file))
             (println "found " owner "/" name "/deps.edn")
             (copy (:body result)
                   output-file
@@ -223,5 +228,87 @@
    (archive-zip-url owner repo nil))
   ([owner repo ref]
    (str api-base-url "/repos/"owner "/"repo "/zipball/" ref)))
+
+
+(comment
+  (def tags
+    (http/request (with-auth
+                    {:url tag-url
+                     :as :json
+                     :method :get}
+                    )))
+  ,)
+
+(defn find-tags [repos]
+  (iteration
+   (fn [{:keys [repos last-response] :as k}]
+     (let [repo (first repos)
+           req {:url (:tags_url repo)
+                :as :json
+                :method :get}]
+       (prn req)
+       (rate-limit-sleep! last-response)
+       (let [response (http/request (with-auth req))]
+         (assoc response
+                ::repo repo
+                ::key k
+                ::request req))))
+   :vf (juxt ::repo :body)
+   :kf
+   (fn [response]
+     (when-let [next-repos (-> response
+                               ::key
+                               :repos
+                               next)]
+      {:last-response response
+       :repos next-repos}))
+   :initk {:repos (seq repos)}))
+
+(defn update-tag-index [& args]
+  (let [all-repos (load-all-repos)
+        deps-repos (->> all-repos
+                        (filter (fn [repo]
+                                  (.exists (repo->deps-file repo)))))
+        all-tags (vec (find-tags deps-repos))]
+    (spit (io/file (release-dir) "deps-tags.edn")
+          (->edn all-tags))))
+
+(defn load-deps-tags []
+  (with-open [rdr (io/reader (io/file (release-dir) "deps-tags.edn"))
+              rdr (PushbackReader. rdr)]
+    (edn/read rdr)))
+
+(defn load-available-git-libs []
+  (with-open [rdr (io/reader (io/file (release-dir) "deps-libs.edn"))
+              rdr (PushbackReader. rdr)]
+    (edn/read rdr)))
+
+(defn update-available-git-libs-index [& args]
+  (let [deps-tags (load-deps-tags)
+        deps-libs
+        (into {}
+              (map (fn [[repo tags]]
+                     ;;io.github.yourname/time-lib {:git/tag "v0.0.1" :git/sha "4c4a34d"}
+                     (let [login (-> repo :owner :login)
+                           repo-name (:name repo)
+                           repo-name (if (not (re-matches #"^[a-zA-Z].*" repo-name))
+                                       (str "X-" repo-name)
+                                       repo-name)
+                           lib (symbol (str "io.github." login) repo-name)
+                           versions
+                           (vec
+                            (for [tag tags]
+                              {:git/tag (:name tag)
+                               :git/sha (-> tag :commit :sha)}))]
+                       [lib
+                        {:description (:description repo)
+                         :lib lib
+                         :topics (:topics repo)
+                         :stars (:stargazers_count repo)
+                         :url (:html_url repo)
+                         :versions versions}])))
+              deps-tags)]
+    (spit (io/file (release-dir) "deps-libs.edn")
+          (->edn deps-libs))))
 
 
