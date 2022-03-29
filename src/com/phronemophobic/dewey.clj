@@ -3,9 +3,11 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [slingshot.slingshot :refer [try+]])
+            [slingshot.slingshot :refer [try+ throw+]])
   (:import java.time.Instant
            java.time.Duration
+           java.time.LocalDate
+           java.time.format.DateTimeFormatter
            java.io.PushbackReader))
 
 
@@ -28,6 +30,34 @@
    :query-params {:per_page 100
                   :sort "stars"
                   :order "desc"}})
+
+(def formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd"))
+(defn release-dir []
+  (let [date-str (.format (LocalDate/now)
+                          formatter)
+        dir (io/file "releases" date-str)]
+    (.mkdirs dir)
+    dir))
+
+(defn copy
+  "Similar to clojure.java.io/copy, but throw exception if more than `max-bytes`
+  are attempted to be written."
+  [input output max-bytes]
+  (with-open [is (io/input-stream input)
+              os (io/output-stream output)]
+    (let [buffer (make-array Byte/TYPE 1024)]
+      (loop [bytes-remaining max-bytes]
+        (let [size (.read is buffer)
+              write-size (min bytes-remaining
+                              size)]
+          (when (pos? size)
+            (.write os buffer 0 write-size)
+            (when (> size bytes-remaining)
+              (throw+
+               {:type :max-bytes-limit-exceeded
+                :limit max-bytes}))
+
+            (recur (- bytes-remaining write-size))))))))
 
 (defn search-repos-request [query]
   (assoc-in base-request [:query-params :q] query))
@@ -104,43 +134,56 @@
     (str "https://raw.githubusercontent.com/" full-name "/" default-branch "/" fname)))
 
 (defn sanitize [s]
-  (str/replace s #"[^a-zA-Z0-9 -]" "_"))
+  (str/replace s #"[^a-zA-Z0-9_.-]" "_"))
 
 (defn download-deps
   ([]
-   (let [all-responses (with-open [rdr (io/reader (io/file "all-responses.edn"))
-                                   rdr (PushbackReader. rdr)]
-                         (edn/read rdr))
-         repos (->> all-responses
-                    (map :body)
-                    (mapcat :items))]
-     (download-deps repos)))
+   (let [all-repos (with-open [rdr (io/reader (io/file (release-dir) "all-repos.edn"))
+                               rdr (PushbackReader. rdr)]
+                     (edn/read rdr))]
+     (download-deps all-repos)))
   ([repos]
-   ;; default rate limit is 5k/hour
-   ;; aiming for 4.5k/hour since there's no good feedback mechanism
-   (doseq [chunk (partition-all 4500 repos)]
-     (doseq [repo chunk]
-       (try+
-        (let [name (:name repo)
-              owner (-> repo :owner :login)
-              fname (str (sanitize name) "-" (sanitize owner) "-deps.edn" )
-              _ (print "checking " name owner "...")
-              result (http/request (with-auth
-                                     {:url (deps-url repo)
-                                      :method :get
-                                      :as :stream}))]
-          (println "found " fname)
-          (io/copy (:body result)
-                   (io/file "deps" fname))
-          (.close (:body result)))
-        (catch [:status 404] {:keys [body]}
-          (println "not found" )))
-       )
-     (println "sleeping for an hour")
-     ;; sleep an hour
-     (dotimes [i 60]
-       (println (- 60 i) " minutes until next chunk.")
-       (Thread/sleep (* 1000 60))))))
+   (let [deps-dir (io/file (release-dir) "deps")
+         ;; default rate limit is 5k/hour
+         ;; aiming for 4.5k/hour since there's no good feedback mechanism
+         chunks (partition-all 4500 repos)]
+     (.mkdirs deps-dir)
+     (doseq [[sleep? chunk] (map vector
+                                 chunks
+                                 (concat (map (constantly true) (butlast chunks))
+                                         [false]))]
+       (doseq [repo chunk]
+         (try+
+          (let [name (:name repo)
+                owner (-> repo :owner :login)
+                _ (print "checking " name owner "...")
+                result (http/request (with-auth
+                                       {:url (deps-url repo)
+                                        :method :get
+                                        :as :stream}))
+                output-dir (io/file deps-dir
+                                    (sanitize owner)
+                                    (sanitize name))
+                output-file (io/file output-dir "deps.edn")]
+            (.mkdirs output-dir)
+            (println "found " owner "/" name "/deps.edn")
+            (copy (:body result)
+                  output-file
+                  ;; limit file sizes to 50kb
+
+                  (* 50 1024))
+            (.close (:body result)))
+          (catch [:status 404] {:keys [body]}
+            (println "not found" ))
+          (catch [:type :max-bytes-limit-exceeded] _
+            (println "deps file too big! skipping..."))))
+
+       (when sleep?
+         (println "sleeping for an hour")
+         ;; sleep an hour
+         (dotimes [i 60]
+           (println (- 60 i) " minutes until next chunk.")
+           (Thread/sleep (* 1000 60))))))))
 
 
 
@@ -163,20 +206,18 @@
 
 (defn update-clojure-repo-index [& args]
   (let [all-responses (vec
-                       (find-clojure-repos))]
-    (spit "all-responses.edn"
-          (->> all-responses
-               (mapv #(dissoc % :http-client))
-               ->edn))))
+                       (find-clojure-repos))
+        all-repos (->> all-responses
+                       (map :body)
+                       (mapcat :items))]
+    (spit (io/file (release-dir) "all-repos.edn")
+          (->edn all-repos))))
 
 
-(comment
-  (def all-responses (vec
-                      (find-clojure-repos)))
-  
-  (download-deps
-   (->> all-responses
-        (map :body)
-        (mapcat :items)))
+(defn archive-zip-url
+  ([owner repo]
+   (archive-zip-url owner repo nil))
+  ([owner repo ref]
+   (str api-base-url "/repos/"owner "/"repo "/zipball/" ref)))
 
-  ,)
+
