@@ -1,6 +1,8 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.0"}
         clj-http/clj-http {:mvn/version "3.12.3"}
+        cheshire/cheshire {:mvn/version "5.10.2"}
+        slingshot/slingshot {:mvn/version "0.12.2"}
         }
  :aliases
  {:test {:extra-paths ["test"]
