@@ -21,6 +21,16 @@ Each release includes a zip of the following files:
 - `all-repos.edn`: A vector of all clojure repositories on github that were found (including non deps.edn based projects).
 - `deps-tags.edn`: This an intermediate file of pairs of github repo information and github tag information.
 
+All the `.edn` files can be read using something like the following:
+```clojure
+(require '[clojure.java.io :as io]
+         '[clojure.edn :as edn])
+(defn read-edn [fname]
+  (with-open [rdr (io/reader fname)
+              rdr (java.io.PushbackReader. rdr)]
+    (edn/read rdr)))
+```
+
 ### Generating the dataset via the github API
 
 To retrieve the data yourself, follow [step 0](#0.-authentication) and then run:
