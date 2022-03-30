@@ -109,6 +109,7 @@ Now that we've bothered to catalog of all of the clojure repos on github, there'
 - Integrate the data into tools and IDEs
   - deps.edn editor that knows the available libraries and versions
   - Find example usages for libraries or specific functions (for [example](https://github.com/phronmophobic/add-deps))
+- Add support for other git hosting sites like gitlab.
 
 
 ## License
