@@ -1,6 +1,6 @@
 # Dewey
 
-Index Clojure libraries on github.
+Index of Clojure libraries on github.
 
 ## Rationale
 
@@ -14,7 +14,7 @@ Pre-retrieved data can be found at [releases](https://github.com/phronmophobic/d
 
 ### What's included?
 
-Each release includes the following files
+Each release includes a zip of the following files:
 
 - `deps-libs.edn`: This the best place to start if you're using the data. It's a map of library name to library info for all clojure github libraries that have `deps.edn` files on their default branch.
 - `deps` directory: The `deps.edn` file for every clojure library that has a `deps.edn` file on their default branch. The folder structure is `deps/<github username>/<github project>/deps.edn`.
@@ -33,14 +33,18 @@ clojure -X:update-clojure-repos-index
 # due to rate limits, takes around 3 hours (mostly sleeping).
 clojure -X:download-deps
 
+# downloads tags for each deps.edn clojure library to releases/yyyy-MM-dd/deps-tags.edn
 clojure -X:update-tag-index
 
+# creates an index of library name to library metadata in releases/yyyy-MM-dd/deps-libs.edn
 clojure -X:update-available-git-libs-index
 ```
 
+These commands must be run in order.
+
 ## Finding Clojure Libraries Methodology
 
-Github search is quirky and has certain limitations imposed by rate-limiting. Below is a short synopsis of how Dewey attempts to locate clojure projects on github within the limitations imposed by github.
+Github search is quirky and has certain limitations imposed by rate-limiting. Below is a short synopsis of how Dewey attempts to locate clojure projects on github within the limitations imposed by github's API.
 
 ### Current Method
 
@@ -69,7 +73,7 @@ Once we have a list of clojure github repositories, we can then check each repos
 
 #### Current known limitations
 
-- There are some libraries that actually are clojure libraries, but aren't found when searching using language:clojure
+- There are some libraries that actually are clojure libraries, but aren't found when searching using `language:clojure`
 - Clojurescript only libraries are not currently targeted
 - Only checks tip of default branch.
 - Only 1,000 libraries max per star count. At the time of writing, this only matters for star counts less than 5.
@@ -100,13 +104,12 @@ It's possible that github's [GraphQL API](https://docs.github.com/en/graphql) mi
 ## Future Work
 
 Now that we've bothered to catalog of all of the clojure repos on github, there's several interesting projects we can do that use the data:
-- Run Static Analysis across repos
+- Download and run static analysis across repos
 - Create a website that combines the clojars data API with dewey's data to make it easier to search for clojure libraries.
 - Integrate the data into tools and IDEs
   - deps.edn editor that knows the available libraries and versions
-  - Find example usages for libraries or specific functions
-- We don't grab version/tag information yet, but that should be a straightforward
-  improvement.
+  - Find example usages for libraries or specific functions (for [example](https://github.com/phronmophobic/add-deps))
+
 
 ## License
 
