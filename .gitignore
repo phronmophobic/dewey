@@ -14,3 +14,4 @@
 .hgignore
 .hg/
 secrets.edn
+releases/
