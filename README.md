@@ -1,6 +1,6 @@
 # Dewey
 
-Index of Clojure libraries on github.
+Index of Clojure libraries available on github.
 
 ## Rationale
 
