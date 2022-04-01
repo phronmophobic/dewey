@@ -11,6 +11,11 @@
            java.io.PushbackReader))
 
 
+(defn read-edn [fname]
+  (with-open [rdr (io/reader fname)
+              rdr (java.io.PushbackReader. rdr)]
+    (edn/read rdr)))
+
 (def api-base-url "https://api.github.com")
 
 (def search-repos-url (str api-base-url "/search/repositories"))
@@ -137,9 +142,7 @@
   (str/replace s #"[^a-zA-Z0-9_.-]" "_"))
 
 (defn load-all-repos []
-  (with-open [rdr (io/reader (io/file (release-dir) "all-repos.edn"))
-                                rdr (PushbackReader. rdr)]
-                      (edn/read rdr)))
+  (read-edn (io/file (release-dir) "all-repos.edn")))
 
 (defn deps-dir []
   (io/file (release-dir) "deps"))
@@ -274,14 +277,10 @@
           (->edn all-tags))))
 
 (defn load-deps-tags []
-  (with-open [rdr (io/reader (io/file (release-dir) "deps-tags.edn"))
-              rdr (PushbackReader. rdr)]
-    (edn/read rdr)))
+  (read-edn (io/file (release-dir) "deps-tags.edn")))
 
 (defn load-available-git-libs []
-  (with-open [rdr (io/reader (io/file (release-dir) "deps-libs.edn"))
-              rdr (PushbackReader. rdr)]
-    (edn/read rdr)))
+  (read-edn (io/file (release-dir)) "deps-libs.edn"))
 
 (defn update-available-git-libs-index [& args]
   (let [deps-tags (load-deps-tags)
@@ -311,4 +310,8 @@
     (spit (io/file (release-dir) "deps-libs.edn")
           (->edn deps-libs))))
 
-
+(defn make-release [& args]
+  (update-clojure-repo-index)
+  (download-deps {})
+  (update-tag-index)
+  (update-available-git-libs-index))

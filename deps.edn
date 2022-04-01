@@ -13,7 +13,7 @@
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
                 com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}}}
 
-  :update-clojure-repos-index
+  :update-clojure-repo-index
   {:exec-fn com.phronemophobic.dewey/update-clojure-repo-index}
 
   :download-deps
@@ -24,6 +24,9 @@
 
   :update-available-git-libs-index
   {:exec-fn com.phronemophobic.dewey/update-available-git-libs-index}
+
+  :make-release
+  {:exec-fn com.phronemophobic.dewey/make-release}
 
   :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.216"}}
         :exec-fn hf.depstar/jar

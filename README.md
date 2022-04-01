@@ -37,7 +37,7 @@ To retrieve the data yourself, follow [step 0](#0.-authentication) and then run:
 
 ```bash
 # creates releases/yyyy-MM-dd/all-repos.edn
-clojure -X:update-clojure-repos-index
+clojure -X:update-clojure-repo-index
 
 # downloads all deps files to releases/yyyy-MM-dd/<user>/<project>/deps.edn
 # due to rate limits, takes around 3 hours (mostly sleeping).
