@@ -14,7 +14,7 @@ Pre-retrieved data can be found at [releases](https://github.com/phronmophobic/d
 
 ### What's included?
 
-Each release includes a zip of the following files:
+Each release includes the following files in .gz or tar.gz format:
 
 - `deps-libs.edn`: This the best place to start if you're using the data. It's a map of library name to library info for all clojure github libraries that have `deps.edn` files on their default branch.
 - `deps` directory: The `deps.edn` file for every clojure library that has a `deps.edn` file on their default branch. The folder structure is `deps/<github username>/<github project>/deps.edn`.
