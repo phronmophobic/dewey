@@ -132,37 +132,42 @@
 ;   :initk {:num-stars 50}
    ))
 
-(defn deps-url [repo]
+(defn load-all-repos []
+  (read-edn (io/file (release-dir) "all-repos.edn")))
+
+(defn fname-url [repo fname]
   (let [full-name (:full_name repo)
-        default-branch (:default_branch repo)
-        fname "deps.edn"]
+        default-branch (:default_branch repo)]
     (str "https://raw.githubusercontent.com/" full-name "/" default-branch "/" fname)))
 
 (defn sanitize [s]
   (str/replace s #"[^a-zA-Z0-9_.-]" "_"))
 
-(defn load-all-repos []
-  (read-edn (io/file (release-dir) "all-repos.edn")))
 
-(defn deps-dir []
-  (io/file (release-dir) "deps"))
 
-(defn repo->deps-file [repo]
-  (io/file (deps-dir)
+(defn fname-dir [dirname]
+)
+
+(defn repo->file [repo dir fname]
+  (io/file dir
            (sanitize (-> repo :owner :login))
            (sanitize (:name repo))
-           "deps.edn"))
+           fname)
+  )
 
-(defn download-deps
+(defn download-file
   ([opts]
    (let [repos (or (:repos opts)
                    (load-all-repos))
+         fname (get opts :fname "deps.edn")
+         dirname (get opts :dirname "deps")
          repo-count (count repos)
          ;; default rate limit is 5k/hour
          ;; aiming for 4.5k/hour since there's no good feedback mechanism
          chunks (partition-all 4500
-                               (map-indexed vector repos))]
-     (.mkdirs (deps-dir))
+                               (map-indexed vector repos))
+         fname-dir (io/file (release-dir) dirname)]
+     (.mkdirs fname-dir)
      (doseq [[chunk sleep?] (map vector
                                  chunks
                                  (concat (map (constantly true) (butlast chunks))
@@ -173,12 +178,12 @@
                 owner (-> repo :owner :login)
                 _ (print i "/" repo-count  " checking " name owner "...")
                 result (http/request (with-auth
-                                       {:url (deps-url repo)
+                                       {:url (fname-url repo fname)
                                         :method :get
                                         :as :stream}))
-                output-file (repo->deps-file repo)]
+                output-file (repo->file repo fname-dir fname)]
             (.mkdirs (.getParentFile output-file))
-            (println "found " owner "/" name "/deps.edn")
+            (println "found.")
             (copy (:body result)
                   output-file
                   ;; limit file sizes to 50kb
@@ -188,7 +193,7 @@
           (catch [:status 404] {:keys [body]}
             (println "not found" ))
           (catch [:type :max-bytes-limit-exceeded] _
-            (println "deps file too big! skipping..."))))
+            (println "file too big! skipping..."))))
 
        (when sleep?
          (println "sleeping for an hour")
@@ -196,6 +201,13 @@
          (dotimes [i 60]
            (println (- 60 i) " minutes until next chunk.")
            (Thread/sleep (* 1000 60))))))))
+
+(defn download-deps
+  ([]
+   (download-deps {}))
+  ([opts]
+   (download-file {:fname "deps.edn"
+                   :dirname "deps"})))
 
 
 
@@ -271,7 +283,9 @@
   (let [all-repos (load-all-repos)
         deps-repos (->> all-repos
                         (filter (fn [repo]
-                                  (.exists (repo->deps-file repo)))))
+                                  (.exists (repo->file repo
+                                                       (io/file (release-dir) "deps")
+                                                       "deps.edn")))))
         all-tags (vec (find-tags deps-repos))]
     (spit (io/file (release-dir) "deps-tags.edn")
           (->edn all-tags))))
