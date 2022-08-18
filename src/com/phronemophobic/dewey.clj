@@ -1,5 +1,7 @@
 (ns com.phronemophobic.dewey
-  (:require [clj-http.client :as http]
+  (:require [com.phronemophobic.dewey.util
+             :refer [copy read-edn]]
+            [clj-http.client :as http]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
@@ -10,11 +12,6 @@
            java.time.format.DateTimeFormatter
            java.io.PushbackReader))
 
-
-(defn read-edn [fname]
-  (with-open [rdr (io/reader fname)
-              rdr (java.io.PushbackReader. rdr)]
-    (edn/read rdr)))
 
 (def api-base-url "https://api.github.com")
 

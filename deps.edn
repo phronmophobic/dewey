@@ -3,6 +3,8 @@
         clj-http/clj-http {:mvn/version "3.12.3"}
         cheshire/cheshire {:mvn/version "5.10.2"}
         slingshot/slingshot {:mvn/version "0.12.2"}
+        clj-kondo/clj-kondo { ;;:mvn/version "2022.08.03"
+                             :local/root "../clj-kondo"}
         }
  :aliases
  {:test {:extra-paths ["test"]
