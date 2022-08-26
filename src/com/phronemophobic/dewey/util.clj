@@ -6,7 +6,8 @@
    [slingshot.slingshot :refer [try+ throw+]])
   (:import
    java.io.PushbackReader
-   java.util.zip.GZIPInputStream))
+   java.util.zip.GZIPInputStream
+   java.util.zip.GZIPOutputStream))
 
 (defn copy
   "Similar to clojure.java.io/copy, but throw exception if more than `max-bytes`
@@ -37,3 +38,61 @@
               rdr (PushbackReader. rdr)]
     (edn/read rdr)))
 
+
+(defn squelch [f]
+  (fn [& args]
+    (try
+      (apply f args)
+      (catch Exception e))))
+
+
+(defn ->edn [o]
+  (binding [*print-namespace-maps* false
+            *print-length* false]
+    (pr-str o)))
+
+(defn save-obj-edn-gz [fname obj]
+  (with-open [os (io/output-stream fname)
+              gs (GZIPOutputStream. os)
+              writer (io/writer gs)]
+    (binding [*print-namespace-maps* false
+              *print-length* false
+              *out* writer]
+      (pr obj))))
+
+(comment
+
+  (def fs (->> (io/file "analysis")
+               (.listFiles)
+               (filter #(str/ends-with? (.getName %) ".edn.gz"))))
+
+
+
+  (def cnt (atom 0))
+  
+  (prof/start)
+  (def fut
+    (future
+      (time
+       (try
+         (def analysis (->> fs
+                            (map (fn [o]
+                                   (swap! cnt inc)
+                                   o))
+                            (pmap (squelch read-edn))
+                            doall))
+         (catch Exception e
+           (println e))))))
+
+  (while true
+    (Thread/sleep 1000)
+    (println @cnt))
+
+  
+
+  (def f (prof/stop))
+
+  (time
+   (save-obj-edn-gz "analysis.edn.gz" analysis))
+
+  )

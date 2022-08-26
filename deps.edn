@@ -15,6 +15,9 @@
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
                 com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}}}
 
+  :analysis
+  {:jvm-opts ["-Xmx32G"]}
+
   :update-clojure-repo-index
   {:exec-fn com.phronemophobic.dewey/update-clojure-repo-index}
 
