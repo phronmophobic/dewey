@@ -1,6 +1,7 @@
 (ns com.phronemophobic.dewey.index
   (:require [com.phronemophobic.dewey.util
-             :refer [copy read-edn]]
+             :refer [copy read-edn with-auth ->edn]
+             :as util]
             [clj-http.client :as http]
             [clojure.edn :as edn]
             [clojure.string :as str]
@@ -11,9 +12,13 @@
   (:import java.time.Instant
            java.time.Duration
            java.time.LocalDate
+           java.util.Date
            java.io.File
+           java.util.zip.GZIPOutputStream
            java.time.format.DateTimeFormatter
            java.io.PushbackReader))
+
+
 
 
 (defn child-file? [^File parentf ^File childf]
@@ -43,8 +48,10 @@
 (defn project-clj-paths [projectf]
   (let [parent-dir (.getParentFile projectf)]
     (sh/with-sh-dir (.getCanonicalPath parent-dir)
-      (let [{:keys [out exit]} (sh/sh "lein" "pprint" ":source-paths")]
-        (assert (zero? exit))
+      (println parent-dir)
+      (let [{:keys [out exit]} (util/sh "lein" "pprint" ":source-paths")]
+        (when-not (zero? exit)
+          (throw+ {:type :lein-fail}))
         (let [paths (edn/read-string out)]
           (paths->files parent-dir paths))))))
 
@@ -54,67 +61,176 @@
                        "/Users/adrian/workspace/dewey/releases/2022-07-25/./deps/stopachka/llisp/deps.edn"))
   ,)
 
+
+
+(defn default-linters-off []
+  (let [default-cfg (clj-kondo/resolve-config (io/file "."))
+        linters (into {}
+                      (for [k (-> default-cfg :linters keys)]
+                        [k {:level :off}]))]
+    linters)
+  )
+
 (defn analyze-project [paths]
   (let [config {:cache false
                 :lint paths
                 :config {:analysis {:locals true
                                     :keywords true
                                     :arglists true
-                                    :protocol-impls true}}}]
+                                    :protocol-impls true}
+                         :linters (default-linters-off)}}]
     (clj-kondo/run! config)))
 
+(defn relative-path [root subpath]
+  (subs (.getCanonicalPath subpath)
+        (count (.getCanonicalPath root))))
 
 (defn index-repo [rootf]
   ;; find all project.clj files and deps.edn
   ;; for each project
   ;;   generate classpath (filter to only files in project dir)
   ;; generate analysis
-  (->> (file-seq rootf)
-       (keep (fn [f]
-               (when (.isFile f)
-                 (let [nm (.getName f)]
-                   (cond
-                     (= nm "deps.edn")
-                     (analyze-project (eps-edn-paths f))
+  (doall
+   (->> (util/file-tree-seq rootf)
+        (keep (fn [f]
+                (when (.isFile f)
+                  (let [nm (.getName f)]
+                    (try+
+                     (cond
+                       (= nm "deps.edn")
+                       (let [basis (relative-path rootf f)]
+                         (println "analyzing subproject:" basis "...")
+                         {:basis basis
+                          :analysis (analyze-project (deps-edn-paths f))})
 
-                     (= nm "project.clj")
-                     (analyze-project (project-clj-paths f))
+                       (= nm "project.clj")
+                       (let [basis (relative-path rootf f)]
+                         (println "analyzing subproject:" basis "...")
+                         {:basis basis
+                          :analysis (analyze-project (project-clj-paths f))})
 
-                     :else nil)))))))
+                       :else nil)
 
-;; for each repository
-;; download zip
-;; unzip somewhere
-;; analyze
-;; save
+                     (catch [:type :lein-fail] _
+                       (println ":lein-fail")
+                       nil)))))))))
+
+(defn unzip [zip-file]
+  (sh/with-sh-dir (.getCanonicalPath (.getParentFile zip-file))
+    (let [{:keys [exit]} (sh/sh "unzip" (.getCanonicalPath zip-file))]
+      (when-not (zero? exit)
+        (throw+ {:type :unzip-fail}))
+      nil)))
 
 
+(defn download-repo
+  "Downloads the zip for the default branch. Returns clj-kondo analysis."
+  [repo]
+  (let [owner (-> repo :owner :login)
+        repo-name (:name repo)
+        branch (:default_branch repo)
+        zip-url (str "https://api.github.com" "/repos/" owner "/" repo-name "/zipball/")
+        ;; zip-url (str "https://github.com/" owner "/" repo-name "/archive/refs/heads/" branch ".zip")
 
-(defn create-index [repos]
-  (doseq [repo repos
-          :let [owner (-> repo :owner :login)
-                repo-name (:name repo)
-                branch (:default_branch repo)
-                zip-url (str "https://github.com/" owner "/" repo-name "/archive/refs/heads/" branch ".zip")
+        output-dir (io/file "/var" "tmp" "dewey")
+        output-file (io/file output-dir "project.zip")
+        _ (prn "downloading " zip-url "...")
+        response (http/request (with-auth
+                                 {:url zip-url
+                                  :method :get
+                                  :as :stream}))]
 
-                output-file (io/file output-dir "project.zip")
-                response (http/request (with-auth
-                                         {:url zip-url
-                                          :method :get
-                                          :as :stream}))]]
-    (copy (:body result)
-                output-file
-                ;; limit file sizes to 100Mb
+    (sh/sh "rm" "-rf" (.getCanonicalPath output-dir))
 
-                (* 100 1024 1024))
+    (.mkdirs output-dir)
 
-    (unzip output-file)
-    
-    )
+    (copy (:body response)
+          output-file
+          ;; limit file sizes to 100Mb
+
+          (* 100 1024 1024))
+    (.close (:body response))
+
+    (let [zip-size (.length output-file)]
+      (println "unzipping")
+      (unzip output-file)
+
+      (.delete output-file)
+
+      (let [repo-dir (->> output-file
+                          (.getParentFile)
+                          (.listFiles)
+                          first)]
+        {:dir repo-dir
+         :zip-size zip-size}))))
+
+(defn download-and-index [repo]
+  (let [
+        {:keys [dir zip-size]} (download-repo repo)
+        _ (println "analyzing" (:name repo))
+        analysis (index-repo dir)]
+    {:zip-size zip-size
+     :analysis analysis
+     :repo (:full_name repo)
+     :analyze-instant (Date.)})
   )
+
+
+(defn index-repos! [repos]
+  (let [chunks (partition-all 4000 repos)]
+    (doseq [[chunk sleep?] (map vector
+                                chunks
+                                (concat (map (constantly true) (butlast chunks))
+                                        [false]))]
+      (doseq [repo chunk]
+        (let [owner (-> repo :owner :login)
+              repo-name (:name repo)
+              analysis-file (io/file "analysis" (str owner "-" repo-name ".edn.gz"))]
+          (try+
+           (println "starting " (:name repo))
+           (let [analysis (download-and-index repo)]
+             (.mkdirs (.getParentFile analysis-file))
+             (with-open [fis (io/output-stream analysis-file)
+                         gis (GZIPOutputStream. fis)]
+               (io/copy (->edn analysis) gis))
+             (println "wrote" (.getName analysis-file)))
+           (catch [:type :max-bytes-limit-exceeded] e
+             (with-open [fis (io/output-stream analysis-file)
+                         gis (GZIPOutputStream. fis)]
+               (io/copy (->edn {:error e}) gis))
+             (println "file too big! skipping..."))
+           (catch Object e
+             (with-open [fis (io/output-stream analysis-file)
+                         gis (GZIPOutputStream. fis)]
+               (io/copy (->edn {:error (str e)}) gis))
+             (println "failed ..." e)))))
+      #_(when sleep?
+          (println "sleeping for an hour...")
+          (dotimes [i 60]
+            (println (- 60 i) " minutes until next chunk.")
+            (Thread/sleep (* 1000 60)))))))
+
 
 ;; https://github.com/phronmophobic/dewey/archive/refs/heads/main.zip
 (comment
   (def all-repos
-    (read-edn "releases/2022-07-25/all-repos.edn.gz"))
+    (read-edn "releases/all-repos.edn"))
+
+  (index-repos! (->> all-repos
+                     (filter #(= "originrose/peer" (:full_name %)))))
+
+  (index-repos! (->> all-repos
+                     (drop 50)
+                     (take 50)))
+
+
+  (def remaining
+    (->> all-repos
+         (remove (fn [repo]
+                   (let [owner (-> repo :owner :login)
+                         repo-name (:name repo)
+                         analysis-file (io/file "analysis" (str owner "-" repo-name ".edn.gz"))]
+                     (.exists analysis-file))))))
+
+  (index-repos! remaining)
   ,)
