@@ -1,6 +1,6 @@
 (ns com.phronemophobic.dewey
   (:require [com.phronemophobic.dewey.util
-             :refer [copy read-edn]]
+             :refer [copy read-edn with-auth ->edn]]
             [clj-http.client :as http]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
@@ -16,14 +16,6 @@
 (def api-base-url "https://api.github.com")
 
 (def search-repos-url (str api-base-url "/search/repositories"))
-(def auth (-> (slurp "secrets.edn")
-              (edn/read-string)
-              :github
-              ((fn [{:keys [user token]}]
-                 (clojure.string/join ":" [user token])))))
-
-(defn with-auth [req]
-  (assoc req :basic-auth auth))
 
 (def base-request
   {:url search-repos-url
@@ -40,26 +32,6 @@
         dir (io/file "releases" date-str)]
     (.mkdirs dir)
     dir))
-
-(defn copy
-  "Similar to clojure.java.io/copy, but throw exception if more than `max-bytes`
-  are attempted to be written."
-  [input output max-bytes]
-  (with-open [is (io/input-stream input)
-              os (io/output-stream output)]
-    (let [buffer (make-array Byte/TYPE 1024)]
-      (loop [bytes-remaining max-bytes]
-        (let [size (.read is buffer)
-              write-size (min bytes-remaining
-                              size)]
-          (when (pos? size)
-            (.write os buffer 0 write-size)
-            (when (> size bytes-remaining)
-              (throw+
-               {:type :max-bytes-limit-exceeded
-                :limit max-bytes}))
-
-            (recur (- bytes-remaining write-size))))))))
 
 (defn search-repos-request [query]
   (assoc-in base-request [:query-params :q] query))
@@ -210,10 +182,7 @@
 
 ;; (repos/repos {:auth auth :per-page 1})
 
-(defn ->edn [o]
-  (binding [*print-namespace-maps* false
-            *print-length* false]
-    (pr-str o)))
+
 
 
 (defn parse-edn [f]
