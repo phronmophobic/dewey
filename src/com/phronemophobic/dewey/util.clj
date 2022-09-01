@@ -120,7 +120,9 @@ Passes the given strings to Runtime.exec() to launch a sub-process.
                           (.destroyForcibly proc)
                           -1))
              ]
-        {:exit exit-code :out @out :err @err}))))
+        {:exit exit-code
+         :out (deref out 30000 "")
+         :err (deref err  30000 "")}))))
 
 (defn file-tree-seq
   "like file-seq, but ignore symbolic links"
