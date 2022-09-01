@@ -31,6 +31,14 @@
 
             (recur (- bytes-remaining write-size))))))))
 
+(defn delete-tree
+  "Deletes a file or directory."
+  [f & [silently]]
+  (when (.isDirectory f)
+    (doseq [childf (.listFiles f)]
+      (delete-tree childf silently)))
+  (io/delete-file f silently))
+
 (defn read-edn [fname]
   (with-open [is (io/input-stream fname)
               is (if (str/ends-with? fname ".gz")
