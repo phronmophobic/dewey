@@ -212,10 +212,54 @@
             (Thread/sleep (* 1000 60)))))))
 
 
+(comment
+  (require '[com.rpl.specter :as specter])
+  (def odd-filenames (atom #{}))
+  (defn data->analyses [data]
+    (let [dbases (->> data :analysis)
+          base->analysis (fn [data base]
+                           (let [out {:repo (:repo data),
+                                      :analyze-instant (:analyze-instant data),
+                                      :basis (:basis base),
+                                      :analysis
+                                      (specter/transform
+                                       [specter/MAP-VALS specter/ALL (specter/must :filename)]
+                                       (fn [s]
+                                         (if (clojure.string/starts-with? s "/var/tmp/dewey/")
+                                           (->> (clojure.string/split s #"/")
+                                                (drop 5)
+                                                (clojure.string/join "/"))
+                                           (do
+                                             (swap! odd-filenames conj {:filename s
+                                                                        :data data
+                                                                        :base base})
+                                             specter/NONE)))
+                                       (-> base :analysis :analysis))}]
+                             out))
+          analyses (mapv (fn [base] (base->analysis data base)) dbases)]
+      analyses))
+
+  (defn zpath [zip]
+    (loop [path []
+           zip zip]
+      (if zip
+        (recur
+         (let [o (z/node zip)]
+           (if (map-entry? o)
+             (conj path (key o))
+             path))
+         (z/up zip))
+        path)))
+  ,)
+
+
+
+
+
 ;; https://github.com/phronmophobic/dewey/archive/refs/heads/main.zip
 (comment
   (def all-repos
-    (read-edn "releases/all-repos.edn"))
+    (read-edn "releases/2022-07-25/all-repos.edn.gz"))
 
   (index-repos! (->> all-repos
                      (filter #(= "originrose/peer" (:full_name %)))))
@@ -234,4 +278,36 @@
                      (.exists analysis-file))))))
 
   (index-repos! remaining)
+
+  (def analysis (time
+                 (read-edn "analysis2.edn.gz")))
+
+  (def memsis (time
+               (read-edn "analysis/phronmophobic-membrane.edn.gz")))
+
+
+  (def analyses-files (->> (io/file "analysis")
+                           (.listFiles)
+                           (filter #(clojure.string/ends-with? (.getName %) ".edn.gz"))))
+
+
+  (with-open [os (io/output-stream "analysis2.edn.gz")
+              gs (GZIPOutputStream. os)
+              writer (io/writer gs)]
+    (binding [*print-namespace-maps* false
+              *print-length* false
+              *out* writer]
+      (println "[")
+      (doseq [fname analyses-files
+              :let [data (try
+                           (read-edn fname)
+                           (catch Exception e
+                             nil))]
+              :when data
+              :let [analyses (data->analyses data)]]
+        (doseq [analysis analyses]
+          (pr analysis)
+          (print "\n")))
+      (println "]")))
+  
   ,)
