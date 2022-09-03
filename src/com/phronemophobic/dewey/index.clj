@@ -13,6 +13,9 @@
            java.time.Duration
            java.time.LocalDate
            java.util.Date
+           java.nio.file.Files
+           java.nio.file.attribute.FileAttribute
+           java.nio.file.Path
            java.io.File
            java.util.zip.GZIPOutputStream
            java.time.format.DateTimeFormatter
@@ -31,6 +34,7 @@
           (recur (.getParentFile f)))))))
 
 (def path-separator (System/getProperty "path.separator"))
+(def repos-dir (io/file "repos"))
 
 (defn- paths->files [parent-dir paths]
   (->> paths
@@ -165,6 +169,30 @@
         {:dir repo-dir
          :zip-size zip-size}))))
 
+(defn local-checkout [repo]
+  (let [
+        repo-dir (io/file repos-dir
+                          (-> repo :owner :login)
+                          (:name repo))]
+
+    (if (not (.exists repo-dir))
+      (throw+ {:type :clone-fail
+               :reason :missing-repo})
+      (let [tmp (-> (Files/createTempDirectory (str (-> repo :owner :login)
+                                                    "_"
+                                                    (:name repo)
+                                                    "_")
+                                               (into-array FileAttribute nil))
+                    (.toFile))
+            {:keys [exit out err]} (util/sh "git" "clone" (.getCanonicalPath repo-dir) (.getCanonicalPath tmp))]
+        (when-not (zero? exit)
+          (println out)
+          (println err)
+          (throw+ {:type :clone-fail
+                   :out out
+                   :err err}))
+        tmp))))
+
 (defn download-and-index [repo]
   (let [
         {:keys [dir zip-size]} (download-repo repo)
@@ -177,7 +205,7 @@
   )
 
 
-(defn index-repos! [repos]
+#_(defn index-repos! [repos]
   (let [chunks (partition-all 4000 repos)]
     (doseq [[chunk sleep?] (map vector
                                 chunks
@@ -211,6 +239,60 @@
             (println (- 60 i) " minutes until next chunk.")
             (Thread/sleep (* 1000 60)))))))
 
+
+(defn index-repos! [repos]
+  (.mkdirs (io/file "analysis"))
+  (dorun
+   (pmap (fn [repo]
+           (let [owner (-> repo :owner :login)
+                 repo-name (:name repo)
+                 full-repo-name (str owner "/" repo-name)
+                 analysis-file (io/file "analysis" (str owner "-" repo-name ".edn.gz"))]
+             (when-not (.exists analysis-file)
+              (println full-repo-name "creating local checkout ")
+              (try+
+               (let [
+                     repo-dir (local-checkout repo)]
+                 (try+
+                  (println full-repo-name "analyzing" )
+                  (let [analysis (index-repo repo-dir)]
+                    (.mkdirs (.getParentFile analysis-file))
+                    (with-open [fis (io/output-stream analysis-file)
+                                gis (GZIPOutputStream. fis)]
+                      (io/copy (->edn analysis) gis))
+                    (println full-repo-name "done" ))
+                  (catch [:type :max-bytes-limit-exceeded] e
+                    (with-open [fis (io/output-stream analysis-file)
+                                gis (GZIPOutputStream. fis)]
+                      (io/copy (->edn {:error e}) gis))
+                    (println full-repo-name "file too big! skipping..."))
+                  (catch Object e
+                    (with-open [fis (io/output-stream analysis-file)
+                                gis (GZIPOutputStream. fis)]
+                      (io/copy (->edn {:error (str e)}) gis))
+                    (println full-repo-name "failed ..." e))
+                  (finally
+                    (println "deleting" (.getCanonicalPath repo-dir) (util/delete-tree repo-dir true))
+                    )))
+               (catch [:type :clone-fail
+                       :reason :missing-repo] _
+                 (println full-repo-name  "missing repo. skipping..."))))))
+         repos))
+  )
+
+(defn clone-repo [repo]
+  (let [owner (-> repo :owner :login)
+        output-dir (io/file repos-dir owner)
+        clone-url (:clone_url repo)]
+    (.mkdirs output-dir)
+    (sh/with-sh-dir (.getCanonicalPath output-dir)
+      ;; probably should use --bare instead of --no-checkout
+      (let [{:keys [out exit]} (util/sh "git" "clone" "--no-checkout" "--depth=1" clone-url)]
+        (println out)
+        (when-not (zero? exit)
+          (throw+ {:type :clone-fail}))
+        nil)))
+  )
 
 (comment
   (require '[com.rpl.specter :as specter])
@@ -279,6 +361,30 @@
 
   (index-repos! remaining)
 
+  ;; check out all repos
+  (def to-checkout (->> all-repos
+                        (filter #(< (:size %) 400000))))
+
+  (doseq [repo to-checkout
+          :let [owner (-> repo :owner :login)
+                output-dir (io/file repos-dir owner)]
+          :when (not (.exists output-dir))]
+    (println "checking out" (-> repo :owner :login) (:name repo))
+    (clone-repo repo))
+
+  (doseq [repo to-checkout
+          :let [owner (-> repo :owner :login)
+                output-dir (io/file repos-dir owner)
+                repo-dir (io/file output-dir (:name repo))]
+          :when (not (.exists repo-dir))]
+    (println "checking out" (-> repo :owner :login) (:name repo))
+    (try+
+      (clone-repo repo)
+      (catch [:type :clone-fail] _
+        (println "clone failed."))))
+
+  
+
   (def analysis (time
                  (read-edn "analysis2.edn.gz")))
 
@@ -311,3 +417,5 @@
       (println "]")))
   
   ,)
+
+
