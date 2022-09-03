@@ -49,8 +49,9 @@
   (let [parent-dir (.getParentFile projectf)]
     (sh/with-sh-dir (.getCanonicalPath parent-dir)
       (println parent-dir)
-      (let [{:keys [out exit]} (util/sh "lein" "pprint" ":source-paths")]
+      (let [{:keys [out err exit]} (util/sh "lein" "pprint" ":source-paths")]
         (when-not (zero? exit)
+          ;; (println out err)
           (throw+ {:type :lein-fail}))
         (let [paths (edn/read-string out)]
           (paths->files parent-dir paths))))))
