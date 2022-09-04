@@ -286,10 +286,10 @@
         clone-url (:clone_url repo)]
     (.mkdirs output-dir)
     (sh/with-sh-dir (.getCanonicalPath output-dir)
-      ;; probably should use --bare instead of --no-checkout
-      (let [{:keys [out exit]} (util/sh "git" "clone" "--no-checkout" "--depth=1" clone-url)]
-        (println out)
+      (let [{:keys [out err exit]} (util/sh "git" "clone" "--bare" "--depth=1" clone-url)]
         (when-not (zero? exit)
+          (println out)
+          (println err)
           (throw+ {:type :clone-fail}))
         nil)))
   )
@@ -367,15 +367,8 @@
 
   (doseq [repo to-checkout
           :let [owner (-> repo :owner :login)
-                output-dir (io/file repos-dir owner)]
-          :when (not (.exists output-dir))]
-    (println "checking out" (-> repo :owner :login) (:name repo))
-    (clone-repo repo))
-
-  (doseq [repo to-checkout
-          :let [owner (-> repo :owner :login)
                 output-dir (io/file repos-dir owner)
-                repo-dir (io/file output-dir (:name repo))]
+                repo-dir (io/file output-dir (str (:name repo) ".git"))]
           :when (not (.exists repo-dir))]
     (println "checking out" (-> repo :owner :login) (:name repo))
     (try+
