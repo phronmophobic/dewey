@@ -386,7 +386,7 @@
   
 
   (def analysis (time
-                 (read-edn "analysis2.edn.gz")))
+                 (read-edn "releases/2022-07-25/analysis.edn.gz")))
 
   (def memsis (time
                (read-edn "analysis/phronmophobic-membrane.edn.gz")))

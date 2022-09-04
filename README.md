@@ -20,15 +20,12 @@ Each release includes the following files in .gz or tar.gz format:
 - `deps` directory: The `deps.edn` file for every clojure library that has a `deps.edn` file on their default branch. The folder structure is `deps/<github username>/<github project>/deps.edn`.
 - `all-repos.edn`: A vector of all clojure repositories on github that were found (including non deps.edn based projects).
 - `deps-tags.edn`: This an intermediate file of pairs of github repo information and github tag information.
+- `analysis.edn.gz`: clj-kondo analysis for every repo. _available as of 2022-07-25 release_
 
-All the `.edn` files can be read using something like the following:
+All the `.edn` or `.edn.gz` files can be read using `com.phronemophobic.dewey.util/read-edn`. For example:
 ```clojure
-(require '[clojure.java.io :as io]
-         '[clojure.edn :as edn])
-(defn read-edn [fname]
-  (with-open [rdr (io/reader fname)
-              rdr (java.io.PushbackReader. rdr)]
-    (edn/read rdr)))
+(require 'com.phronemophobic.dewey.util)
+(def data (com.phronemophobic.dewey.util/read-edn fname))
 ```
 
 ### Generating the dataset via the github API
