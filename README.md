@@ -17,10 +17,23 @@ Pre-retrieved data can be found at [releases](https://github.com/phronmophobic/d
 Each release includes the following files in .gz or tar.gz format:
 
 - `deps-libs.edn`: This the best place to start if you're using the data. It's a map of library name to library info for all clojure github libraries that have `deps.edn` files on their default branch.
+  Library info keys:
+      `:description` The github repo description.
+      `:lib` Lib coordinate that will be recognized by clojure cli tools. https://clojure.org/reference/deps_and_cli#find-versions
+      `:topics` The github topics for the repo.
+      `:stars` Number of github stars.
+      `:url` URL to page on github.
+      `:versions`: vector of lib coordinates based on the tags in the git repo.
 - `deps` directory: The `deps.edn` file for every clojure library that has a `deps.edn` file on their default branch. The folder structure is `deps/<github username>/<github project>/deps.edn`.
-- `all-repos.edn`: A vector of all clojure repositories on github that were found (including non deps.edn based projects).
+- `all-repos.edn`: A vector of all clojure repositories on github that were found (including non deps.edn based projects). Each repository is represented by a map with all of the data returned via the github API https://docs.github.com/en/rest/repos/repos#get-a-repository.
+  
 - `deps-tags.edn`: This an intermediate file of pairs of github repo information and github tag information.
+
 - `analysis.edn.gz`: clj-kondo analysis for every repo. _available as of 2022-07-25 release_
+The kondo config turns off all linters and includes the `:locals`, `:keywords`, `:arglists`, and `protocol-impls` analyses.
+see https://github.com/phronmophobic/dewey/blob/main/src/com/phronemophobic/dewey/index.clj#L79.
+See https://github.com/clj-kondo/clj-kondo/tree/master/analysis.
+
 
 All the `.edn` or `.edn.gz` files can be read using `com.phronemophobic.dewey.util/read-edn`. For example:
 ```clojure
