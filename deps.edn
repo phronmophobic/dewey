@@ -6,6 +6,7 @@
         clj-kondo/clj-kondo { :mvn/version "2022.08.03"
                              ;;:local/root "../clj-kondo"
                              }
+        io.github.phronmophobic/taro {:git/sha "481ab2fa650b52330bc794d2e170036c34233e82" :git/tag "v1.2"}
         }
  :aliases
  {:test {:extra-paths ["test"]
@@ -16,10 +17,21 @@
   :project
   {:extra-deps {com.phronemophobic/membrane {:mvn/version "0.9.31.8-beta"}
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
-                com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}}}
+                com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}
+
+                com.cognitect.aws/api       {:mvn/version "0.8.620"}
+                com.cognitect.aws/endpoints {:mvn/version "1.1.12.353"}
+                com.cognitect.aws/s3        {:mvn/version "825.2.1250.0"}
+                com.cognitect.aws/ec2 {:mvn/version "825.2.1266.0"}}}
 
   :analysis
   {:jvm-opts ["-Xmx32G"]}
+
+  :aws
+  {:extra-deps {com.cognitect.aws/api       {:mvn/version "0.8.620"}
+                com.cognitect.aws/endpoints {:mvn/version "1.1.12.353"}
+                com.cognitect.aws/s3        {:mvn/version "825.2.1250.0"}
+                com.cognitect.aws/ec2 {:mvn/version "825.2.1266.0"}}}
 
   :update-clojure-repo-index
   {:exec-fn com.phronemophobic.dewey/update-clojure-repo-index}
