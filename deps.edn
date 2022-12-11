@@ -42,6 +42,9 @@
   :update-tag-index
   {:exec-fn com.phronemophobic.dewey/update-tag-index}
 
+  :update-default-branches
+  {:exec-fn com.phronemophobic.dewey/update-default-branches}
+
   :update-available-git-libs-index
   {:exec-fn com.phronemophobic.dewey/update-available-git-libs-index}
 

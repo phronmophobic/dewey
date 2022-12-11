@@ -8,7 +8,6 @@
             [slingshot.slingshot :refer [try+ throw+]])
   (:import java.time.Instant
            java.time.Duration
-           java.time.LocalDate
            java.time.format.DateTimeFormatter
            java.io.PushbackReader))
 
@@ -25,11 +24,8 @@
                   :sort "stars"
                   :order "desc"}})
 
-(def formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd"))
-(defn release-dir []
-  (let [date-str (.format (LocalDate/now)
-                          formatter)
-        dir (io/file "releases" date-str)]
+(defn release-dir [release-id]
+  (let [dir (io/file "releases" release-id)]
     (.mkdirs dir)
     dir))
 
@@ -101,8 +97,8 @@
 ;   :initk {:num-stars 50}
    ))
 
-(defn load-all-repos []
-  (read-edn (io/file (release-dir) "all-repos.edn")))
+(defn load-all-repos [release-id]
+  (read-edn (io/file (release-dir release-id) "all-repos.edn")))
 
 (defn fname-url [repo fname]
   (let [full-name (:full_name repo)
@@ -125,12 +121,13 @@
   )
 
 (defn download-file
-  ([opts]
-   (let [repos (or (:repos opts)
-                   (load-all-repos))
-         fname (get opts :fname "deps.edn")
-         dirname (get opts :dirname "deps")
-         repo-count (count repos)
+  ([{:keys [repos
+            fname
+            dirname]}]
+   (assert (and repos
+                fname
+                dirname))
+   (let [repo-count (count repos)
          ;; default rate limit is 5k/hour
          ;; aiming for 4.5k/hour since there's no good feedback mechanism
          chunks (partition-all 4500
@@ -172,11 +169,12 @@
            (Thread/sleep (* 1000 60))))))))
 
 (defn download-deps
-  ([]
-   (download-deps {}))
   ([opts]
-   (download-file {:fname "deps.edn"
-                   :dirname "deps"})))
+   (let [release-id (:release-id opts)]
+     (assert release-id)
+     (download-file {:fname "deps.edn"
+                     :dirname "deps"
+                     :repos (load-all-repos release-id)}))))
 
 
 
@@ -194,13 +192,14 @@
       (prn f e)
       nil)))
 
-(defn update-clojure-repo-index [& args]
+(defn update-clojure-repo-index [{:keys [release-id]}]
+  (assert release-id)
   (let [all-responses (vec
                        (find-clojure-repos))
         all-repos (->> all-responses
                        (map :body)
                        (mapcat :items))]
-    (spit (io/file (release-dir) "all-repos.edn")
+    (spit (io/file (release-dir release-id) "all-repos.edn")
           (->edn all-repos))))
 
 
@@ -245,25 +244,67 @@
        :repos next-repos}))
    :initk {:repos (seq repos)}))
 
-(defn update-tag-index [& args]
-  (let [all-repos (load-all-repos)
+
+
+(defn update-tag-index [{:keys [release-id]}]
+  (assert release-id)
+  (let [all-repos (load-all-repos release-id)
         deps-repos (->> all-repos
                         (filter (fn [repo]
                                   (.exists (repo->file repo
-                                                       (io/file (release-dir) "deps")
+                                                       (io/file (release-dir release-id) "deps")
                                                        "deps.edn")))))
         all-tags (vec (find-tags deps-repos))]
-    (spit (io/file (release-dir) "deps-tags.edn")
+    (spit (io/file (release-dir release-id) "deps-tags.edn")
           (->edn all-tags))))
 
-(defn load-deps-tags []
-  (read-edn (io/file (release-dir) "deps-tags.edn")))
+(defn load-deps-tags [release-id]
+  (read-edn (io/file (release-dir release-id) "deps-tags.edn")))
 
-(defn load-available-git-libs []
-  (read-edn (io/file (release-dir)) "deps-libs.edn"))
+(defn branch-test [repo]
+  (str/replace (:branches_url repo)
+               #"\{/branch}"
+               (str "/" (:default_branch repo))))
 
-(defn update-available-git-libs-index [& args]
-  (let [deps-tags (load-deps-tags)
+(defn find-default-branches [repos]
+  (iteration
+   (fn [{:keys [repos last-response] :as k}]
+     (let [repo (first repos)
+           req {:url (str/replace (:branches_url repo)
+                                  #"\{/branch}"
+                                  (str "/" (:default_branch repo)))
+                :as :json
+                :method :get}]
+       (rate-limit-sleep! last-response)
+       (let [response (http/request (with-auth req))]
+         (assoc response
+                ::repo repo
+                ::key k
+                ::request req))))
+   :vf (juxt ::repo :body)
+   :kf
+   (fn [response]
+     (when-let [next-repos (-> response
+                               ::key
+                               :repos
+                               next)]
+       {:last-response response
+        :repos next-repos}))
+   :initk {:repos (seq repos)}))
+
+(defn update-default-branches [{:keys [release-id]}]
+  (assert release-id)
+  (let [all-repos (load-all-repos release-id)
+        all-default-branches (vec (find-default-branches all-repos))]
+    (spit (io/file (release-dir) "default-branches.edn")
+          (->edn all-default-branches))))
+
+(defn load-available-git-libs [release-id]
+  (read-edn (io/file (release-dir release-id)) "deps-libs.edn"))
+
+(defn update-available-git-libs-index [{:keys [release-id]}]
+  (assert release-id)
+  (let [deps-tags (load-deps-tags release-id)
         deps-libs
         (into {}
               (map (fn [[repo tags]]
@@ -287,11 +328,13 @@
                          :url (:html_url repo)
                          :versions versions}])))
               deps-tags)]
-    (spit (io/file (release-dir) "deps-libs.edn")
+    (spit (io/file (release-dir release-id) "deps-libs.edn")
           (->edn deps-libs))))
 
-(defn make-release [& args]
-  (update-clojure-repo-index)
-  (download-deps {})
-  (update-tag-index)
-  (update-available-git-libs-index))
+(defn make-release [{:keys [release-id]
+                     :as opts}]
+  (assert release-id)
+  (update-clojure-repo-index opts)
+  (download-deps opts)
+  (update-tag-index opts)
+  (update-available-git-libs-index opts))
