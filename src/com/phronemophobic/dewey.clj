@@ -275,6 +275,8 @@
            req {:url (str/replace (:branches_url repo)
                                   #"\{/branch}"
                                   (str "/" (:default_branch repo)))
+                :unexceptional-status #(or (http/unexceptional-status? %)
+                                           (= % 404))
                 :as :json
                 :method :get}]
        (rate-limit-sleep! last-response)
