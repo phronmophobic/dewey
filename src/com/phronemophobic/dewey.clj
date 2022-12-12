@@ -123,6 +123,7 @@
 (defn download-file
   ([{:keys [repos
             fname
+            release-id
             dirname]}]
    (assert (and repos
                 fname
@@ -132,7 +133,7 @@
          ;; aiming for 4.5k/hour since there's no good feedback mechanism
          chunks (partition-all 4500
                                (map-indexed vector repos))
-         fname-dir (io/file (release-dir) dirname)]
+         fname-dir (io/file (release-dir release-id) dirname)]
      (.mkdirs fname-dir)
      (doseq [[chunk sleep?] (map vector
                                  chunks
@@ -174,6 +175,7 @@
      (assert release-id)
      (download-file {:fname "deps.edn"
                      :dirname "deps"
+                     :release-id release-id
                      :repos (load-all-repos release-id)}))))
 
 
@@ -296,7 +298,7 @@
   (assert release-id)
   (let [all-repos (load-all-repos release-id)
         all-default-branches (vec (find-default-branches all-repos))]
-    (spit (io/file (release-dir) "default-branches.edn")
+    (spit (io/file (release-dir release-id) "default-branches.edn")
           (->edn all-default-branches))))
 
 (defn load-available-git-libs [release-id]
