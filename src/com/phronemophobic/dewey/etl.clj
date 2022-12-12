@@ -76,18 +76,22 @@
      (io/copy file gz))
    gz-file))
 
-(defn run []
-  (let [release-id (str (random-uuid))
-        opts {:release-id release-id}]
-    (doseq [{:keys [f files]} steps]
-      (f opts)
-      ;; upload compressed files to s3
-      (let [release-dir (dewey/release-dir release-id)]
-        (doseq [fname files
-                :let [file (io/file release-dir fname)]]
-          (if (.isDirectory file)
-            (let [tar-file (tar-gz! file)]
-              (upload-file release-id release-dir tar-file))
-            (let [gz-file (gz! file)]
-              (upload-file release-id release-dir gz-file))))))))
+(defn run
+  ([]
+   (run (str (random-uuid))))
+  ([release-id]
+   (let [opts {:release-id release-id}]
+     (prn release-id)
+     (doseq [{:keys [f files] :as step} steps]
+       (prn "starting step: " step)
+       (f opts)
+       ;; upload compressed files to s3
+       (let [release-dir (dewey/release-dir release-id)]
+         (doseq [fname files
+                 :let [file (io/file release-dir fname)]]
+           (if (.isDirectory file)
+             (let [tar-file (tar-gz! file)]
+               (upload-file release-id release-dir tar-file))
+             (let [gz-file (gz! file)]
+               (upload-file release-id release-dir gz-file)))))))))
 
