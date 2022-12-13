@@ -19,7 +19,8 @@
            java.io.File
            java.util.zip.GZIPOutputStream
            java.time.format.DateTimeFormatter
-           java.io.PushbackReader))
+           java.io.PushbackReader
+           java.io.FilterInputStream))
 
 
 
@@ -148,11 +149,18 @@
     (sh/sh "rm" "-rf" (.getCanonicalPath output-dir))
 
     (.mkdirs output-dir)
-    (with-open [body (:body response)]
-      (copy body
-            output-file
-            ;; limit file sizes to 100Mb
-            (* 100 1024 1024)))
+    (let [body (:body response)
+          ;; wrap stream to call close on http client
+          ;; before closing underlying inputstream
+          body (proxy [FilterInputStream]
+                   [^InputStream body]
+                 (close []
+                   (.close (:http-client response))))]
+     (with-open [body body]
+       (copy body
+             output-file
+             ;; limit file sizes to 100Mb
+             (* 100 1024 1024))))
 
     (let [zip-size (.length output-file)]
       (println "unzipping")
