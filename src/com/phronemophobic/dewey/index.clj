@@ -134,8 +134,8 @@
   (let [owner (-> repo :owner :login)
         repo-name (:name repo)
         branch (:default_branch repo)
-        zip-url (str "https://api.github.com" "/repos/" owner "/" repo-name "/zipball/")
-        ;; zip-url (str "https://github.com/" owner "/" repo-name "/archive/refs/heads/" branch ".zip")
+        ;; zip-url (str "https://api.github.com" "/repos/" owner "/" repo-name "/zipball/")
+        zip-url (str "https://github.com/" owner "/" repo-name "/archive/" (:git/sha repo) ".zip")
 
         output-dir (io/file "/var" "tmp" "dewey")
         output-file (io/file output-dir "project.zip")
@@ -148,13 +148,11 @@
     (sh/sh "rm" "-rf" (.getCanonicalPath output-dir))
 
     (.mkdirs output-dir)
-
-    (copy (:body response)
-          output-file
-          ;; limit file sizes to 100Mb
-
-          (* 100 1024 1024))
-    (.close (:body response))
+    (with-open [body (:body response)]
+      (copy body
+            output-file
+            ;; limit file sizes to 100Mb
+            (* 100 1024 1024)))
 
     (let [zip-size (.length output-file)]
       (println "unzipping")
@@ -200,10 +198,24 @@
         analysis (index-repo dir)]
     {:zip-size zip-size
      :analysis analysis
+     :git/sha (:git/sha repo)
      :repo (:full_name repo)
      :analyze-instant (Date.)})
   )
 
+(defn index-repo! [repo]
+  (try
+   (println "starting " (:name repo))
+   (let [analysis (download-and-index repo)]
+     analysis)
+   #_(catch [:type :max-bytes-limit-exceeded] e
+     (println "file too big! skipping...")
+     {:error e})
+   (catch Exception e
+     (prn "got error " e)
+     (if-let [data (ex-data e)]
+       {:error data}
+       {:error (str e)}))))
 
 #_(defn index-repos! [repos]
   (let [chunks (partition-all 4000 repos)]
@@ -212,27 +224,7 @@
                                 (concat (map (constantly true) (butlast chunks))
                                         [false]))]
       (doseq [repo chunk]
-        (let [owner (-> repo :owner :login)
-              repo-name (:name repo)
-              analysis-file (io/file "analysis" (str owner "-" repo-name ".edn.gz"))]
-          (try+
-           (println "starting " (:name repo))
-           (let [analysis (download-and-index repo)]
-             (.mkdirs (.getParentFile analysis-file))
-             (with-open [fis (io/output-stream analysis-file)
-                         gis (GZIPOutputStream. fis)]
-               (io/copy (->edn analysis) gis))
-             (println "wrote" (.getName analysis-file)))
-           (catch [:type :max-bytes-limit-exceeded] e
-             (with-open [fis (io/output-stream analysis-file)
-                         gis (GZIPOutputStream. fis)]
-               (io/copy (->edn {:error e}) gis))
-             (println "file too big! skipping..."))
-           (catch Object e
-             (with-open [fis (io/output-stream analysis-file)
-                         gis (GZIPOutputStream. fis)]
-               (io/copy (->edn {:error (str e)}) gis))
-             (println "failed ..." e)))))
+        )
       #_(when sleep?
           (println "sleeping for an hour...")
           (dotimes [i 60]
@@ -240,7 +232,7 @@
             (Thread/sleep (* 1000 60)))))))
 
 
-(defn index-repos! [repos]
+#_(defn index-repos! [repos]
   (.mkdirs (io/file "analysis"))
   (dorun
    (pmap (fn [repo]

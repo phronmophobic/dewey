@@ -19,17 +19,14 @@
               os (io/output-stream output)]
     (let [buffer (make-array Byte/TYPE 1024)]
       (loop [bytes-remaining max-bytes]
-        (let [size (.read is buffer)
-              write-size (min bytes-remaining
-                              size)]
-          (when (pos? size)
-            (.write os buffer 0 write-size)
-            (when (> size bytes-remaining)
-              (throw+
-               {:type :max-bytes-limit-exceeded
-                :limit max-bytes}))
-
-            (recur (- bytes-remaining write-size))))))))
+        (let [size (.read is buffer)]
+          (if (> size bytes-remaining)
+            (throw+
+             {:type :max-bytes-limit-exceeded
+              :limit max-bytes})
+            (when (pos? size)
+              (.write os buffer 0 size)
+              (recur (- bytes-remaining size)))))))))
 
 (defn delete-tree
   "Deletes a file or directory."
@@ -48,11 +45,13 @@
               rdr (PushbackReader. rdr)]
     (edn/read rdr)))
 
-(def auth (-> (slurp "secrets.edn")
-              (edn/read-string)
-              :github
-              ((fn [{:keys [user token]}]
-                 (clojure.string/join ":" [user token])))))
+(def auth
+  (when (.exists (io/file "secrets.edn"))
+    (-> (slurp "secrets.edn")
+        (edn/read-string)
+        :github
+        ((fn [{:keys [user token]}]
+           (clojure.string/join ":" [user token]))))))
 
 (defn with-auth [req]
   (assoc req :basic-auth auth))
