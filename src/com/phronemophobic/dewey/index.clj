@@ -219,6 +219,11 @@
    #_(catch [:type :max-bytes-limit-exceeded] e
      (println "file too big! skipping...")
      {:error e})
+   (catch OutOfMemoryError e
+     (prn "got error " e)
+     (if-let [data (ex-data e)]
+       {:error data}
+       {:error (str e)}))
    (catch Exception e
      (prn "got error " e)
      (if-let [data (ex-data e)]
