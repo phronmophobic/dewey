@@ -1,6 +1,7 @@
 (ns com.phronemophobic.dewey
   (:require [com.phronemophobic.dewey.util
-             :refer [copy read-edn with-auth ->edn]]
+             :refer [copy read-edn with-auth ->edn]
+             :as util]
             [clj-http.client :as http]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
@@ -300,8 +301,8 @@
   (assert release-id)
   (let [all-repos (load-all-repos release-id)
         all-default-branches (vec (find-default-branches all-repos))]
-    (spit (io/file (release-dir release-id) "default-branches.edn")
-          (->edn all-default-branches))))
+    (util/save-obj-edn (io/file (release-dir release-id) "default-branches.edn")
+                       all-default-branches)))
 
 (defn load-available-git-libs [release-id]
   (read-edn (io/file (release-dir release-id)) "deps-libs.edn"))

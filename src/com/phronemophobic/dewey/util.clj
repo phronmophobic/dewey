@@ -160,6 +160,14 @@ Passes the given strings to Runtime.exec() to launch a sub-process.
               *out* writer]
       (pr obj))))
 
+(defn save-obj-edn [fname obj]
+  (with-open [os (io/output-stream fname)
+              writer (io/writer os)]
+    (binding [*print-namespace-maps* false
+              *print-length* false
+              *out* writer]
+      (pr obj))))
+
 (comment
 
   (def fs (->> (io/file "analysis")
