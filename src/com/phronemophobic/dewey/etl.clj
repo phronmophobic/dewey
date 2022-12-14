@@ -130,6 +130,35 @@
             (println "done."))
           (println "not found."))))))
 
+
+
+(defn analyzed-repos
+  "Checks s3 for already uploaded analysis for this release."
+  [release-id]
+  (let [responses (iteration
+                   (fn [token]
+                     (let [prefix (clojure.string/join "/"
+                                                       [key-prefix release-id "analysis"])]
+                       (aws/invoke s3-client
+                                   {:op :ListObjectsV2
+                                    :request
+                                    (merge
+                                     {:Bucket bucket
+                                      :Prefix prefix}
+                                     (when token
+                                       {:ContinuationToken token}))})))
+                   :kf :NextContinuationToken
+                   )]
+    (into #{}
+          (comp (mapcat :Contents)
+                (map :Key)
+                (map (fn [k]
+                       (->> (clojure.string/split k #"/")
+                            (drop 3)
+                            (drop-last 1)
+                            (into [])))))
+          responses)))
+
 (defn index-release [release-id]
   (let [release-dir (dewey/release-dir release-id)
         repos (let [default-branches
@@ -142,7 +171,9 @@
                                              :commit
                                              :sha))))
                        (filter :git/sha))
-                 default-branches))]
+                 default-branches))
+
+        already-analyzed (atom (analyzed-repos release-id))]
     (doseq [repo repos]
       (let [
             owner (-> repo :owner :login)
@@ -152,14 +183,17 @@
                                   owner
                                   repo-name)
             analysis-file (io/file analysis-dir "analysis.edn.gz")]
-        (if (.exists analysis-file)
+        (if (or (.exists analysis-file)
+                (contains? @already-analyzed [owner repo-name]))
           (do
             (println (str owner "/" repo-name) "-" "analysis already exists. skipping..."))
           (let [analysis (index/index-repo! repo)]
             (.mkdirs analysis-dir)
             (util/save-obj-edn-gz analysis-file
                                   analysis)
-            (upload-file release-id release-dir analysis-file)))))))
+            (upload-file release-id release-dir analysis-file)
+            (swap! already-analyzed conj [owner repo-name])
+            (util/delete-tree analysis-dir true)))))))
 
 (defn run
   ([]
