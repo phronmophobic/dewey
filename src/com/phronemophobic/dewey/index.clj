@@ -8,7 +8,8 @@
             [clojure.java.io :as io]
             [clojure.java.shell :as sh]
             [slingshot.slingshot :refer [try+ throw+]]
-            [clj-kondo.core :as clj-kondo])
+            [clj-kondo.core :as clj-kondo]
+            [edamame.core :as edamame] )
   (:import java.time.Instant
            java.time.Duration
            java.time.LocalDate
@@ -51,22 +52,20 @@
 
 
 (defn project-clj-paths [projectf]
-  (let [parent-dir (.getParentFile projectf)]
-    (sh/with-sh-dir (.getCanonicalPath parent-dir)
-      (println parent-dir)
-      (let [{:keys [out err exit]} (util/sh "lein" "pprint" ":source-paths")]
-        (when-not (zero? exit)
-          ;; (println out err)
-          (throw+ {:type :lein-fail}))
-        (let [paths (edn/read-string out)]
-          (paths->files parent-dir paths))))))
+  (let [project (with-open [rdr (io/reader projectf)
+                            rdr (edamame/reader rdr)]
+                  (edamame/parse-next
+                   rdr
+                   (edamame/normalize-opts {:all true})))
 
-
-(comment
-  (deps-edn-classpath (io/file
-                       "/Users/adrian/workspace/dewey/releases/2022-07-25/./deps/stopachka/llisp/deps.edn"))
-  ,)
-
+        {:keys [source-paths]} (when (seq? project)
+                                 (let [kvs (drop 3 project)]
+                                   (when (even? (count kvs))
+                                     (apply hash-map kvs))))
+        parent-dir (.getParentFile (io/file projectf))]
+    (paths->files parent-dir
+                  (or source-paths
+                      ["src"]))))
 
 
 (defn default-linters-off []
