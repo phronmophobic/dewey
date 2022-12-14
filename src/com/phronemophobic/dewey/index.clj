@@ -82,7 +82,9 @@
                 :config {:analysis {:locals true
                                     :keywords true
                                     :arglists true
-                                    :protocol-impls true}
+                                    :protocol-impls true
+                                    :var-definitions {:meta true}
+                                    :namespace-definitions {:meta true}}
                          :linters (default-linters-off)}}]
     (clj-kondo/run! config)))
 
