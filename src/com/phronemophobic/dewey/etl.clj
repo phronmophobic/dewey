@@ -201,16 +201,15 @@
   ([release-id]
    (let [opts {:release-id release-id}]
      (prn release-id)
-     (doseq [{:keys [f files] :as step} steps]
+     (doseq [{:keys [f outputs] :as step} steps]
        (prn "starting step: " step)
        (f opts)
        ;; upload compressed files to s3
        (let [release-dir (dewey/release-dir release-id)]
-         (doseq [fname files
-                 :let [file (io/file release-dir fname)]]
-           (if (.isDirectory file)
-             (let [tar-file (tar-gz! file)]
+         (doseq [output outputs]
+           (if-let [dir (:dir output)]
+             (let [tar-file (tar-gz! (io/file release-dir dir))]
                (upload-file release-id release-dir tar-file))
-             (let [gz-file (gz! file)]
+             (let [gz-file (gz! (io/file release-dir (:file output)))]
                (upload-file release-id release-dir gz-file)))))))))
 
