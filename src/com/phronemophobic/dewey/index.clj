@@ -131,11 +131,10 @@
 
 
 (defn download-repo
-  "Downloads the zip for the default branch. Returns clj-kondo analysis."
+  "Downloads the zip. Returns clj-kondo analysis."
   [repo]
   (let [owner (-> repo :owner :login)
         repo-name (:name repo)
-        branch (:default_branch repo)
         ;; zip-url (str "https://api.github.com" "/repos/" owner "/" repo-name "/zipball/")
         zip-url (str "https://github.com/" owner "/" repo-name "/archive/" (:git/sha repo) ".zip")
 
@@ -230,6 +229,13 @@
      (if-let [data (ex-data e)]
        {:error data}
        {:error (str e)}))))
+
+(comment
+  (def my-analysis
+    (index-repo! {:name "membrane"
+                  :owner {:login "phronmophobic"}
+                  :git/sha "9e5a2a53e3909e86d119153693c2d0a4d0dbd24c"}))
+  ,)
 
 #_(defn index-repos! [repos]
   (let [chunks (partition-all 4000 repos)]
