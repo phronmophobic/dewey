@@ -27,15 +27,15 @@
 
 
 (def steps
-  [{:f dewey/update-clojure-repo-index
+  [{:f #'dewey/update-clojure-repo-index
     :outputs [{:file "all-repos.edn"}]}
-   {:f dewey/find-default-branches
+   {:f #'dewey/find-default-branches
     :outputs [{:file "default-branches.edn"}]}
-   {:f dewey/download-deps
+   {:f #'dewey/download-deps
     :outputs [{:dir "deps"}]}
-   {:f dewey/update-tag-index
+   {:f #'dewey/update-tag-index
     :outputs [{:file "deps-tags.edn"}]}
-   {:f dewey/update-available-git-libs-index
+   {:f #'dewey/update-available-git-libs-index
     :outputs [{:file "deps-libs.edn"}]}])
 
 (def bucket "com-phronemophobic-dewey")
