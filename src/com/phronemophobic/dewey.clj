@@ -167,7 +167,8 @@
 (defn download-deps
   ([opts]
    (let [release-id (:release-id opts)
-         repos (->> (util/read-edn (io/file release-dir "default-branches.edn"))
+         repos (->> (util/read-edn (io/file (release-dir release-id)
+                                            "default-branches.edn"))
                     (into
                      []
                      (comp (map (fn [[repo branch-info]]
