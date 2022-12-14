@@ -99,14 +99,14 @@ Passes the given strings to Runtime.exec() to launch a sub-process.
   [& args]
   (let [[cmd opts] (#'sh/parse-args args)
         proc (.exec (Runtime/getRuntime) 
-               ^"[Ljava.lang.String;" (into-array cmd)
-               (#'sh/as-env-strings (:env opts))
-               (io/as-file (:dir opts)))
+                    ^"[Ljava.lang.String;" (into-array cmd)
+                    (#'sh/as-env-strings (:env opts))
+                    (io/as-file (:dir opts)))
         {:keys [in in-enc out-enc]} opts]
     (if in
       (future
         (with-open [os (.getOutputStream proc)]
-          (copy in os :encoding in-enc)))
+          (io/copy in os :encoding in-enc)))
       (.close (.getOutputStream proc)))
     (with-open [stdout (.getInputStream proc)
                 stderr (.getErrorStream proc)]
