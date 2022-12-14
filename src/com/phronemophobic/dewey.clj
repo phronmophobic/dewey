@@ -103,23 +103,17 @@
 
 (defn fname-url [repo fname]
   (let [full-name (:full_name repo)
-        default-branch (:default_branch repo)]
-    (str "https://raw.githubusercontent.com/" full-name "/" default-branch "/" fname)))
+        ref (:git/sha repo)]
+    (str "https://raw.githubusercontent.com/" full-name "/" ref "/" fname)))
 
 (defn sanitize [s]
   (str/replace s #"[^a-zA-Z0-9_.-]" "_"))
-
-
-
-(defn fname-dir [dirname]
-)
 
 (defn repo->file [repo dir fname]
   (io/file dir
            (sanitize (-> repo :owner :login))
            (sanitize (:name repo))
-           fname)
-  )
+           fname))
 
 (defn download-file
   ([{:keys [repos
@@ -172,12 +166,21 @@
 
 (defn download-deps
   ([opts]
-   (let [release-id (:release-id opts)]
+   (let [release-id (:release-id opts)
+         repos (->> (util/read-edn (io/file release-dir "default-branches.edn"))
+                    (into
+                     []
+                     (comp (map (fn [[repo branch-info]]
+                                  (assoc repo
+                                         :git/sha (-> branch-info
+                                                      :commit
+                                                      :sha))))
+                           (filter :git/sha))))]
      (assert release-id)
      (download-file {:fname "deps.edn"
                      :dirname "deps"
                      :release-id release-id
-                     :repos (load-all-repos release-id)}))))
+                     :repos repos}))))
 
 
 
