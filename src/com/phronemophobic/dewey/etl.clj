@@ -27,15 +27,15 @@
 
 
 (def steps
-  [{:f dewey/update-clojure-repo-index
+  [{:f #'dewey/update-clojure-repo-index
     :outputs [{:file "all-repos.edn"}]}
-   {:f dewey/find-default-branches
+   {:f #'dewey/find-default-branches
     :outputs [{:file "default-branches.edn"}]}
-   {:f dewey/download-deps
+   {:f #'dewey/download-deps
     :outputs [{:dir "deps"}]}
-   {:f dewey/update-tag-index
+   {:f #'dewey/update-tag-index
     :outputs [{:file "deps-tags.edn"}]}
-   {:f dewey/update-available-git-libs-index
+   {:f #'dewey/update-available-git-libs-index
     :outputs [{:file "deps-libs.edn"}]}])
 
 (def bucket "com-phronemophobic-dewey")
@@ -201,16 +201,15 @@
   ([release-id]
    (let [opts {:release-id release-id}]
      (prn release-id)
-     (doseq [{:keys [f files] :as step} steps]
+     (doseq [{:keys [f outputs] :as step} steps]
        (prn "starting step: " step)
        (f opts)
        ;; upload compressed files to s3
        (let [release-dir (dewey/release-dir release-id)]
-         (doseq [fname files
-                 :let [file (io/file release-dir fname)]]
-           (if (.isDirectory file)
-             (let [tar-file (tar-gz! file)]
+         (doseq [output outputs]
+           (if-let [dir (:dir output)]
+             (let [tar-file (tar-gz! (io/file release-dir dir))]
                (upload-file release-id release-dir tar-file))
-             (let [gz-file (gz! file)]
+             (let [gz-file (gz! (io/file release-dir (:file output)))]
                (upload-file release-id release-dir gz-file)))))))))
 
