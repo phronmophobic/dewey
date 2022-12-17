@@ -398,12 +398,17 @@
                (read-edn "analysis/phronmophobic-membrane.edn.gz")))
 
 
-  (def analyses-files (->> (io/file "analysis")
-                           (.listFiles)
+  (def analyses-files (->> (io/file "releases"
+                                    "f33b5afb-9dc6-48c5-a250-7496b7edcbd3"
+                                    "analysis")
+                           (tree-seq #(.isDirectory %)
+                                     #(.listFiles %))
                            (filter #(clojure.string/ends-with? (.getName %) ".edn.gz"))))
 
-
-  (with-open [os (io/output-stream "analysis2.edn.gz")
+  (with-open [os (io/output-stream
+                  (io/file "releases"
+                           "f33b5afb-9dc6-48c5-a250-7496b7edcbd3"
+                           "analysis.edn.gz"))
               gs (GZIPOutputStream. os)
               writer (io/writer gs)]
     (binding [*print-namespace-maps* false
