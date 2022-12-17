@@ -314,6 +314,7 @@
           base->analysis (fn [data base]
                            (let [out {:repo (:repo data),
                                       :analyze-instant (:analyze-instant data),
+                                      :git/sha (:git/sha data)
                                       :basis (:basis base),
                                       :analysis
                                       (specter/transform
