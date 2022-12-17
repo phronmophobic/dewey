@@ -40,6 +40,19 @@ All the `.edn` or `.edn.gz` files can be read using `com.phronemophobic.dewey.ut
 (def data (com.phronemophobic.dewey.util/read-edn fname))
 ```
 
+### Analysis Data
+
+clj-kondo analyses for each project found can be found in the releases under `analysis.edn.gz`. This file can be quite chonky. For an example of how to process the data, see the [stats example](examples/stats).
+
+The file contains a vector of maps, with each map containing the following keys:
+- `:repo`: A string name for the repo, eg. `"phronmophobic/dewey"`.  
+- `:analyze-instant`: The instant that the repo was analyzed, eg. `#inst "2022-12-15T21:09:46.694-00:00"`.  
+- `:git/sha`: The commit hash of the repository commit analyzed, eg. `"69dc62aac32f8a2da0a47aaf1dc662f86ff05760"`.
+- `:basis`: A single repository can have multiple projects. Basis is the project file used to generate the source paths for clj-kondo to analyze, eg. `"path/to/project.clj"` or `path/to/deps.edn`.  
+- `:analysis`: The clj-kondo analysis.
+
+The file is specially formatted edn so that it can be processed without reading the full contents into memory. The first line is `[`, the last line is `]`, and every line in between is a single map.
+
 ### Generating the dataset via the github API
 
 To retrieve the data yourself, follow [step 0](#0.-authentication) and then run:
