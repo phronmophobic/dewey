@@ -4,6 +4,9 @@
  {:stats
   {:main-opts ["-m" "stats"]}
 
+  :cosmos
+  {:main-opts ["-m" "cosmos"]}
+
   :project
   {:extra-deps {com.phronemophobic/membrane {:mvn/version "0.9.31.8-beta"}
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
