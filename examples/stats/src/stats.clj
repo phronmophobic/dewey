@@ -91,6 +91,13 @@
                  (map last))
     :rf frequencies-rf}})
 
+(def extra-stats
+  {:ns-usage-frequencies
+   {:xform (comp (map :analysis)
+                 (mapcat :namespace-usages)
+                 (map :to))
+    :rf frequencies-rf}})
+
 (defn run-stats
   "Returns a map of the statistics to their calculated value."
   [stats coll]
@@ -118,3 +125,8 @@
         (pprint result w))
       (shutdown-agents))))
 
+(comment
+  (def analysis
+    (doall (take 200 (analyses-seq "../../releases/f33b5afb-9dc6-48c5-a250-7496b7edcbd3/analysis.edn.gz"))))
+  
+  ,)
