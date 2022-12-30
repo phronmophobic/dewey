@@ -53,7 +53,16 @@
              [:a {:href (str "search.html?topic=" topic)}
               topic]]
             [:td count]
-            [:td stars]])]]
+            [:td stars]])]
+
+        header
+        [:div
+         [:a {:href "search.html"}
+          "Search"]
+         " "
+         [:a {:href "topics.html"}
+          "Topics"]]
+        ]
    (with-open [w (io/writer "public/topics.html")]
      (binding [*out* w]
        (print
@@ -73,6 +82,8 @@
             (slurp (io/resource "topic-table.js"))]
            ]
           [:body
+           header
+           [:hr]
            table]]
          ))))))
 
