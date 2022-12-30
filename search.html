@@ -35,9 +35,14 @@
       var filter_data = function(x){ return x; };
 
       var target_topic = urlParams.get('topic');
+      var target_owner = urlParams.get('owner');
       if (target_topic){
         filter_data = function (data){
           return data.filter(row => row.topics.some(topic => (topic == target_topic)));
+        };
+      }else if(target_owner){
+        filter_data = function (data){
+          return data.filter(row => row.owner == target_owner);
         };
       }
 
@@ -59,7 +64,15 @@
             { data: 'stars', title: 'stars' },
             { data: 'name', title: 'name' },
             { data: 'description', title: 'description' },
-            { data: 'owner', title: 'owner' },
+            { data: 'owner', title: 'owner' ,
+              render: function (owner){
+                var a = document.createElement('a');
+                a.href = '?owner=' + owner;
+                a.appendChild(document.createTextNode(owner));
+                var html = a.outerHTML;
+                return html;
+              }
+            },
             { data: 'url', title: 'url' ,
               render: function (data){
                 var a = document.createElement('a');
