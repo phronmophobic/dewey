@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html>
   <head>
@@ -11,7 +10,7 @@
   </head>
   <body>
     <table id="example" >
-      <thread>
+      <thead>
         <th>stars</th>
 <th>name</th>
 <th>description</th>
@@ -21,42 +20,57 @@
       </thread>
     </table>
     <script type="text/javascript">
+
+      const queryString = window.location.search;
+      console.log(queryString);
+      const urlParams = new URLSearchParams(queryString);
+      // if (url
+
+      // identity
+      var filter_data = function(x){ return x; };
+
+      var target_topic = urlParams.get('topic');
+      if (target_topic){
+        filter_data = function (data){
+          return data.filter(row => row.topics.some(topic => (topic == target_topic)));
+        };
+      }
+
       document.addEventListener('DOMContentLoaded', function () {
-    let table = new DataTable('#example', {
-      // ajax: function (d, cb) {
-         
-      //       fetch('data/repos.json')
-      //           .then(response => response.json())
-      //     // .then( data => console.log(data));
-      //           .then(data => cb(data));
-      //   },
-      ajax: {
-        "url": "data/repos.json",
-        "dataSrc": ''
-      },
-      order:[0, 'desc'],
-      pageLength: 15,
-      columns: [
-        { data: 'stars', title: 'stars' },
-        { data: 'name', title: 'name' },
-        { data: 'description', title: 'description' },
-        { data: 'owner', title: 'owner' },
-        { data: 'url', title: 'url' ,
-          render: function (data){
-            var a = document.createElement('a');
-            a.href = data;
-            a.appendChild(document.createTextNode(data));
-            var html = a.outerHTML;
-            return html;
-          }
-        },
-        { data: 'topics', title: 'topics',
-          render: function (data){
-            return data.join(', ');
-          }
-        }
-      ]
-    } );
+        let table = new DataTable('#example', {
+          ajax: function (d, cb) {
+            fetch('data/repos.json')
+              .then(response => response.json())
+              .then(filter_data)
+              .then(data => cb({data: data}));
+          },
+          // ajax: {
+          //   "url": "data/repos.json",
+          //   "dataSrc": ''
+          // },
+          order:[0, 'desc'],
+          pageLength: 15,
+          columns: [
+            { data: 'stars', title: 'stars' },
+            { data: 'name', title: 'name' },
+            { data: 'description', title: 'description' },
+            { data: 'owner', title: 'owner' },
+            { data: 'url', title: 'url' ,
+              render: function (data){
+                var a = document.createElement('a');
+                a.href = data;
+                a.appendChild(document.createTextNode(data));
+                var html = a.outerHTML;
+                return html;
+              }
+            },
+            { data: 'topics', title: 'topics',
+              render: function (data){
+                return data.join(', ');
+              }
+            }
+          ]
+        } );
 } );
     </script>
   </body>
