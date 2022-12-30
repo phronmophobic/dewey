@@ -1,0 +1,12 @@
+;; shadow-cljs configuration
+{:dependencies
+ []
+
+ :deps {:aliases [:cljs]}
+
+ :builds
+ {:app {:target :browser
+        :output-dir "public/js"
+        :asset-path "/js"
+        :modules {:main {:entries [com.phronemophobic.dewey.web]}}}}
+ }

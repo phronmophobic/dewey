@@ -16,3 +16,7 @@
 secrets.edn
 releases/
 todo.org
+*.json
+*.gz
+.shadow-cljs
+*.org

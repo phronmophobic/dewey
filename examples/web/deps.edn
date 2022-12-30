@@ -1,0 +1,24 @@
+{:paths ["src"]
+ :deps {com.cognitect/transit-clj {:mvn/version "1.0.329"}
+        com.phronemophobic/dewey {:local/root "../../"}
+        org.clojure/data.json {:mvn/version "2.4.0"}        
+        }
+ :aliases
+ {
+  :cljs {
+         :extra-deps {thheller/shadow-cljs {:mvn/version "2.20.16"}
+                      reagent/reagent {:mvn/version "1.1.1"}
+                      cljsjs/react {:mvn/version "17.0.2-0"}
+                      arttuka/reagent-material-ui {:mvn/version "5.10.1-0"}
+                      com.cognitect/transit-cljs {:mvn/version "0.8.280"}
+                      cljsjs/react-dom {:mvn/version "17.0.2-0"}}}
+
+  :project
+  {:extra-deps {com.phronemophobic/membrane {:mvn/version "0.9.31.8-beta"}
+                com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
+                com.phronemophobic/spreadsheet {:local/root "../../../spreadsheet"}
+
+                com.cognitect.aws/api       {:mvn/version "0.8.620"}
+                com.cognitect.aws/endpoints {:mvn/version "1.1.12.353"}
+                com.cognitect.aws/s3        {:mvn/version "825.2.1250.0"}
+                com.cognitect.aws/ec2 {:mvn/version "825.2.1266.0"}}}}}
