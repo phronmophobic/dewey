@@ -66,6 +66,13 @@
             },
             { data: 'topics', title: 'topics',
               render: function (data){
+                var data = data.map(function(topic){
+                  var a = document.createElement('a');
+                  a.href = '?topic=' + topic;
+                  a.appendChild(document.createTextNode(topic));
+                  var html = a.outerHTML;
+                  return html;
+                });
                 return data.join(', ');
               }
             }
