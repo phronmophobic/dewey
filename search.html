@@ -1,0 +1,63 @@
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Search clojure libs on github</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.3.min.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.js"></script>
+
+  </head>
+  <body>
+    <table id="example" >
+      <thread>
+        <th>stars</th>
+<th>name</th>
+<th>description</th>
+<th>owner</th>
+<th>url</th>
+<th></th>
+      </thread>
+    </table>
+    <script type="text/javascript">
+      document.addEventListener('DOMContentLoaded', function () {
+    let table = new DataTable('#example', {
+      // ajax: function (d, cb) {
+         
+      //       fetch('data/repos.json')
+      //           .then(response => response.json())
+      //     // .then( data => console.log(data));
+      //           .then(data => cb(data));
+      //   },
+      ajax: {
+        "url": "data/repos.json",
+        "dataSrc": ''
+      },
+      order:[0, 'desc'],
+      pageLength: 15,
+      columns: [
+        { data: 'stars', title: 'stars' },
+        { data: 'name', title: 'name' },
+        { data: 'description', title: 'description' },
+        { data: 'owner', title: 'owner' },
+        { data: 'url', title: 'url' ,
+          render: function (data){
+            var a = document.createElement('a');
+            a.href = data;
+            a.appendChild(document.createTextNode(data));
+            var html = a.outerHTML;
+            return html;
+          }
+        },
+        { data: 'topics', title: 'topics',
+          render: function (data){
+            return data.join(', ');
+          }
+        }
+      ]
+    } );
+} );
+    </script>
+  </body>
+</html>
