@@ -2,6 +2,10 @@
 
 Index of Clojure libraries available on github.
 
+Web frontends:
+- [Search](https://phronmophobic.github.io/dewey/search.html)
+- [Topics](https://phronmophobic.github.io/dewey/topics.html)
+
 ## Rationale
 
 The goal of this project is to make the clojure libraries available on github easier to programmatically list and inspect.
