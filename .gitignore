@@ -20,3 +20,4 @@ todo.org
 *.gz
 .shadow-cljs
 *.org
+/repos
