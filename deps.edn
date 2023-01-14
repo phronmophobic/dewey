@@ -8,6 +8,9 @@
                              }
         borkdude/edamame {:mvn/version "1.0.16"}
         io.github.phronmophobic/taro {:git/sha "481ab2fa650b52330bc794d2e170036c34233e82" :git/tag "v1.2"}
+        com.cognitect.aws/api       {:mvn/version "0.8.620"}
+        com.cognitect.aws/endpoints {:mvn/version "1.1.12.353"}
+        com.cognitect.aws/s3        {:mvn/version "825.2.1250.0"}
         }
  :aliases
  {:test {:extra-paths ["test"]
@@ -20,9 +23,7 @@
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
                 com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}
 
-                com.cognitect.aws/api       {:mvn/version "0.8.620"}
-                com.cognitect.aws/endpoints {:mvn/version "1.1.12.353"}
-                com.cognitect.aws/s3        {:mvn/version "825.2.1250.0"}
+
                 com.cognitect.aws/ec2 {:mvn/version "825.2.1266.0"}}}
 
   :analysis
