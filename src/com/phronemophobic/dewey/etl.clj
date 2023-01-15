@@ -213,3 +213,7 @@
              (let [gz-file (gz! (io/file release-dir (:file output)))]
                (upload-file release-id release-dir gz-file)))))))))
 
+(defn run-index
+  ([release-id]
+   (download-release release-id)
+   (index-release release-id)))
