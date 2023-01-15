@@ -29,7 +29,7 @@
 (def steps
   [{:f #'dewey/update-clojure-repo-index
     :outputs [{:file "all-repos.edn"}]}
-   {:f #'dewey/find-default-branches
+   {:f #'dewey/update-default-branches
     :outputs [{:file "default-branches.edn"}]}
    {:f #'dewey/download-deps
     :outputs [{:dir "deps"}]}
