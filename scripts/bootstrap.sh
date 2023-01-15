@@ -9,6 +9,7 @@ apt -y install rlwrap
 apt -y install awscli
 apt -y install unzip
 apt -y install leiningen
+apt -y install git
 NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 echo '# Set PATH, MANPATH, etc., for Homebrew.' >> /home/ubuntu/.profile
