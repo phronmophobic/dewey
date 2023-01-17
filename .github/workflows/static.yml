@@ -29,11 +29,16 @@ jobs:
         uses: actions/checkout@v3
       - name: Setup Pages
         uses: actions/configure-pages@v2
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@9.5
+        with:
+          cli: 1.11.1.1208
+      - name: Build static
+        run: cd examples/web && clojure -M:build-static
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
-          # Upload entire repository
-          path: '.'
+          path: 'examples/web/public'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v1
