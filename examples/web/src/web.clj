@@ -6,41 +6,63 @@
             [clojure.java.io :as io]))
 
 
-(def libs (read-edn "../../releases/f33b5afb-9dc6-48c5-a250-7496b7edcbd3/deps-libs.edn.gz"))
+(def releases-url
+  "https://api.github.com/repos/phronmophobic/dewey/releases/latest")
+(def release-info )
 
+(def release-info
+  (delay
+    (json/read-str (slurp (io/as-url releases-url)))))
 
+(defn load-latest* [fname]
+  (let [info @release-info
+        release-url (-> info
+                        (get "assets")
+                        (->>
+                         (filter
+                          (fn [m]
+                            (= fname (get m "name")))))
+                        first
+                        (get "browser_download_url"))]
+    (read-edn release-url)))
+(def load-latest (memoize load-latest*))
 
-(def repos (read-edn "../../releases/f33b5afb-9dc6-48c5-a250-7496b7edcbd3/all-repos.edn.gz"))
+(def repos
+  (delay (load-latest "all-repos.edn.gz")))
 
 (def repos-short
-  (into []
-        (comp (map (fn [m]
+  (delay
+    (into []
+          (comp (map (fn [m]
 
-                     {:stars (:stargazers_count m)
-                      :name (:name m)
-                      :description (:description m)
-                      :owner (-> m :owner :login)
-                      :url (:html_url m)
-                      :topics (:topics m)})))
-        repos))
+                       {:stars (:stargazers_count m)
+                        :name (:name m)
+                        :description (:description m)
+                        :owner (-> m :owner :login)
+                        :url (:html_url m)
+                        :topics (:topics m)})))
+          @repos)))
+
 
 (def ++ (fnil + 0))
 (def inc+ (fnil inc 0))
-(def topics
-  (reduce
-   (fn [m repo]
-     (let [stars (:stars repo)]
-       (reduce (fn [m topic]
-                 (-> m
-                     (update-in [topic :count] inc+)
-                     (update-in [topic :stars] ++ stars)))
-               m
-               (:topics repo))))
-   {}
-   repos-short))
+
 
 (defn write-topics []
-  (let [table
+  (let [topics
+        (reduce
+         (fn [m repo]
+           (let [stars (:stars repo)]
+             (reduce (fn [m topic]
+                       (-> m
+                           (update-in [topic :count] inc+)
+                           (update-in [topic :stars] ++ stars)))
+                     m
+                     (:topics repo))))
+         {}
+         @repos-short)
+        
+        table
         [:table#example
          [:thead
           [:th "topic"]
@@ -61,7 +83,11 @@
           "Search"]
          " "
          [:a {:href "topics.html"}
-          "Topics"]]
+          "Topics"]
+
+         [:a {:href "https://github.com/phronmophobic/dewey/tree/main/examples/web"
+              :style "float:right;"}
+          "Source on Github"]]
         ]
    (with-open [w (io/writer "public/topics.html")]
      (binding [*out* w]
@@ -87,9 +113,23 @@
            table]]
          ))))))
 
-(comment
+(defn write-repos []
   (with-open [writer (io/writer "public/data/repos.json")]
-    (json/write repos-short writer))
+    (json/write @repos-short writer)))
+
+(defn -main [& args]
+  (.mkdirs (io/file "public"))
+  (.mkdirs (io/file "public/data"))
+
+  (with-open [out (io/writer "public/search.html")
+              in (io/reader (io/resource "search.html"))]
+    (io/copy in
+             out))
+  (write-repos)
+  (write-topics))
+
+(comment
+  
   ,)
 
 #_(def repos2  )
