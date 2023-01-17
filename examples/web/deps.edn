@@ -13,6 +13,9 @@
                       com.cognitect/transit-cljs {:mvn/version "0.8.280"}
                       cljsjs/react-dom {:mvn/version "17.0.2-0"}}}
 
+  :build-static
+  {:main-opts ["-m" "web"]}
+
   :project
   {:extra-deps {com.phronemophobic/membrane {:mvn/version "0.9.31.8-beta"}
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
