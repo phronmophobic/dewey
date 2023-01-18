@@ -21,3 +21,4 @@ todo.org
 .shadow-cljs
 *.org
 /repos
+/etl
