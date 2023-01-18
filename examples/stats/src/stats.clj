@@ -73,6 +73,11 @@
   {:num-analyses
    {:rf count-rf}
 
+   :num-projects
+   {:xform (comp (map :repo)
+                 (distinct))
+    :rf count-rf}
+
    :num-namespaces
    {:xform (comp (map :analysis)
                  (mapcat :namespace-definitions)
