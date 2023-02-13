@@ -44,7 +44,7 @@
 
 (defn upload-file
   ([release-id file]
-   (upload-file release-id (.getParentFile file)))
+   (upload-file release-id (.getParentFile file) file))
   ([release-id base file]
    (if (.isDirectory file)
      (run! #(upload-file release-id base %) (.listFiles file))
