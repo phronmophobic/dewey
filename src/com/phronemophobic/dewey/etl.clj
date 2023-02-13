@@ -7,7 +7,8 @@
             [com.phronemophobic.dewey.util :as util]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.pprint :refer [pprint]])
+            [clojure.pprint :refer [pprint]]
+            [com.rpl.specter :as specter])
   (:import [java.util.zip
             GZIPOutputStream
             GZIPInputStream]))
@@ -41,27 +42,30 @@
 (def bucket "com-phronemophobic-dewey")
 (def key-prefix "releases")
 
-(defn upload-file [release-id base file]
-  (if (.isDirectory file)
-    (run! #(upload-file release-id base %) (.listFiles file))
-    
-    (with-open [is (io/input-stream file)]
-      (let [parts (loop [;; since we're walking up the tree
-                         ;; use a list to reverse
-                         parts ()
-                         file file]
-                    (if (= file base)
-                      parts
-                      (recur (conj parts (.getName file))
-                             (.getParentFile file))))
-            key-parts (into [key-prefix release-id] parts)
-            request {:Bucket bucket
-                     :Key (clojure.string/join "/" key-parts)
-                     :Body is
-                     :ACL "private"}]
-        (prn request)
-        (aws/invoke s3-client {:op :PutObject
-                             :request request})))))
+(defn upload-file
+  ([release-id file]
+   (upload-file release-id (.getParentFile file)))
+  ([release-id base file]
+   (if (.isDirectory file)
+     (run! #(upload-file release-id base %) (.listFiles file))
+     
+     (with-open [is (io/input-stream file)]
+       (let [parts (loop [ ;; since we're walking up the tree
+                          ;; use a list to reverse
+                          parts ()
+                          file file]
+                     (if (= file base)
+                       parts
+                       (recur (conj parts (.getName file))
+                              (.getParentFile file))))
+             key-parts (into [key-prefix release-id] parts)
+             request {:Bucket bucket
+                      :Key (clojure.string/join "/" key-parts)
+                      :Body is
+                      :ACL "private"}]
+         (prn request)
+         (aws/invoke s3-client {:op :PutObject
+                                :request request}))))))
 
 (defn tar-gz!
   "Converts a directory to a tar.gz and returns the tar.gz file."
@@ -213,7 +217,69 @@
              (let [gz-file (gz! (io/file release-dir (:file output)))]
                (upload-file release-id release-dir gz-file)))))))))
 
+(defn data->analyses [data]
+  (let [dbases (->> data :analysis)
+        base->analysis (fn [data base]
+                         (let [out {:repo (:repo data),
+                                    :analyze-instant (:analyze-instant data),
+                                    :git/sha (:git/sha data)
+                                    :basis (:basis base),
+                                    :analysis
+                                    (specter/transform
+                                     [specter/MAP-VALS specter/ALL (specter/must :filename)]
+                                     (fn [s]
+                                       (if (clojure.string/starts-with? s "/var/tmp/dewey/")
+                                         (->> (clojure.string/split s #"/")
+                                              (drop 5)
+                                              (clojure.string/join "/"))
+                                         specter/NONE))
+                                     (-> base :analysis :analysis))}]
+                           out))
+        analyses (mapv (fn [base] (base->analysis data base)) dbases)]
+    analyses))
+
+(defn combine-analyses [release-id]
+  (let [release-dir (dewey/release-dir release-id)
+        analyses-files
+        (->> (io/file release-dir
+                      "analysis")
+             (tree-seq #(.isDirectory %)
+                       #(.listFiles %))
+             (filter #(clojure.string/ends-with? (.getName %) ".edn.gz")))]
+    (with-open [os (io/output-stream
+                    (io/file release-dir
+                             "analysis.edn.gz"))
+                gs (GZIPOutputStream. os)
+                writer (io/writer gs)]
+      (binding [*print-namespace-maps* false
+                *print-length* false
+                *out* writer]
+        (println "[")
+        (doseq [fname analyses-files
+                :let [data (try
+                             (util/read-edn fname)
+                             (catch Exception e
+                               nil))]
+                :when data
+                :let [analyses (data->analyses data)]]
+          (doseq [analysis analyses]
+            (pr analysis)
+            (print "\n")))
+        (println "]")))))
+
 (defn run-index
   ([release-id]
-   (download-release release-id)
-   (index-release release-id)))
+   (let [release-dir (dewey/release-dir release-id)]
+     (download-release release-id)
+     (index-release release-id)
+     (combine-analyses release-id)
+     (upload-file release-id (io/file release-dir "analysis.edn.gz"))
+     #_(dewey/make-github-release
+      release-id
+      (for [fname ["all-repos.edn.gz"
+                   "analysis.edn.gz"
+                   "default-branches.edn.gz"
+                   "deps-libs.edn.gz"
+                   "deps-tags.edn.gz"
+                   "deps.tar.gz "]]
+        (io/file release-dir fname))))))
