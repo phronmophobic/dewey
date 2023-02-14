@@ -46,12 +46,19 @@
     (edn/read rdr)))
 
 (def auth
-  (when (.exists (io/file "secrets.edn"))
+  (cond
+
+    (.exists (io/file "secrets.edn"))
     (-> (slurp "secrets.edn")
         (edn/read-string)
         :github
         ((fn [{:keys [user token]}]
-           (clojure.string/join ":" [user token]))))))
+           (clojure.string/join ":" [user token]))))
+
+    (and (System/getProperty "GITHUB_USER")
+         (System/getProperty "GITHUB_TOKEN"))
+    (clojure.string/join ":" [(System/getProperty "GITHUB_USER")
+                              (System/getProperty "GITHUB_TOKEN")])))
 
 (defn with-auth [req]
   (assoc req :basic-auth auth))
