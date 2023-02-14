@@ -21,7 +21,7 @@
   (merge {}
          (when-let [profile (System/getProperty "AWS_PROFILE")]
            {:profile "dewey"
-            :endpoint "us-west-1"})))
+            :endpoint "us-east-1"})))
 
 (amazonica/defcredential s3-creds)
 
