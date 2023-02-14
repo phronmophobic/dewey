@@ -291,7 +291,7 @@
                         :Key key}})
           out-path (io/file release-dir analysis-fname)]
       (with-open [os (io/output-stream out-path)]
-        (io/copy (:body response)
+        (io/copy (:Body response)
                  os)))
 
     (dewey/make-github-release
