@@ -273,13 +273,35 @@
      (download-release release-id)
      (index-release release-id)
      (combine-analyses release-id)
-     (upload-file release-id (io/file release-dir "analysis.edn.gz"))
-     #_(dewey/make-github-release
-      release-id
-      (for [fname ["all-repos.edn.gz"
-                   "analysis.edn.gz"
-                   "default-branches.edn.gz"
-                   "deps-libs.edn.gz"
-                   "deps-tags.edn.gz"
-                   "deps.tar.gz "]]
-        (io/file release-dir fname))))))
+     (upload-file release-id (io/file release-dir "analysis.edn.gz")))))
+
+(defn make-release [release-id sha]
+  (let [release-dir (dewey/release-dir release-id)]
+
+    (download-release release-id)
+    ;; download analysis
+    (let [analysis-fname "analysis.edn.gz"
+          key (clojure.string/join "/"
+                                   [key-prefix release-id analysis-fname])
+          response
+          (aws/invoke s3-client
+                      {:op :GetObject
+                       :request
+                       {:Bucket bucket
+                        :Key key}})
+          out-path (io/file release-dir analysis-fname)]
+      (with-open [os (io/output-stream out-path)]
+        (io/copy (:Body response)
+                 os)))
+
+    (dewey/make-github-release
+     release-id
+     sha
+     (for [fname ["all-repos.edn.gz"
+                  "analysis.edn.gz"
+                  "default-branches.edn.gz"
+                  "deps-libs.edn.gz"
+                  "deps-tags.edn.gz"
+                  "deps.tar.gz"]]
+       (io/file release-dir fname)))))
+

@@ -33,6 +33,49 @@
 (defn search-repos-request [query]
   (assoc-in base-request [:query-params :q] query))
 
+(defn make-github-release [release-id sha files]
+  (let [make-tag-req
+        {:url (str api-base-url
+                   "/repos/phronmophobic/dewey/git/tags")
+         :method :post
+         :content-type :json
+         :form-params
+         {"tag" release-id
+          "message" "Release",
+          "object" sha
+          "type" "commit",}
+         :as :json}
+        make-tag-response (http/request (with-auth make-tag-req))
+        ;; _ (clojure.pprint/pprint make-tag-response)
+
+        make-release-req
+        {:url (str api-base-url
+                   "/repos/phronmophobic/dewey/releases")
+         :method :post
+         :content-type :json
+         :form-params {"tag_name" release-id
+                       "target_commitish" sha
+                       "name" release-id
+                       "draft" true
+                       "prerelease" false}
+         :as :json}
+        make-release-response (http/request (with-auth make-release-req))
+        github-release-id (-> make-release-response
+                              :body
+                              :id)]
+    ;; (clojure.pprint/pprint make-release-response)
+    (assert github-release-id)
+    (doseq [file files]
+      (let [upload-req
+            {:url (str "https://uploads.github.com/repos/phronmophobic/dewey/releases/" github-release-id "/assets")
+             :headers {"Content-Type" "application/octet-stream"}
+             :method :post
+             :query-params {:name (.getName file)}
+             :body file
+             :as :json}]
+        (prn "uploading" (.getName file))
+        (http/request (with-auth upload-req))))))
+
 (defn rate-limit-sleep! [response]
   (when response
     (let [headers (:headers response)
