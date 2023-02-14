@@ -290,6 +290,8 @@
                        {:Bucket bucket
                         :Key key}})
           out-path (io/file release-dir analysis-fname)]
+      (clojure.pprint/pprint
+       response)
       (with-open [os (io/output-stream out-path)]
         (io/copy (:Body response)
                  os)))
