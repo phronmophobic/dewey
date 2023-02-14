@@ -45,6 +45,8 @@
               rdr (PushbackReader. rdr)]
     (edn/read rdr)))
 
+(def env (delay (System/getenv)))
+
 (def auth
   (cond
 
@@ -55,10 +57,10 @@
         ((fn [{:keys [user token]}]
            (clojure.string/join ":" [user token]))))
 
-    (and (System/getProperty "GITHUB_USER")
-         (System/getProperty "GITHUB_TOKEN"))
-    (clojure.string/join ":" [(System/getProperty "GITHUB_USER")
-                              (System/getProperty "GITHUB_TOKEN")])))
+    (and (get @env "GITHUB_USER")
+         (get @env "GITHUB_TOKEN"))
+    (clojure.string/join ":" [(get @env "GITHUB_USER")
+                              (get @env "GITHUB_TOKEN")])))
 
 (defn with-auth [req]
   (assoc req :basic-auth auth))
