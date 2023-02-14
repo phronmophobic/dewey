@@ -1,6 +1,7 @@
 (ns com.phronemophobic.dewey.etl
-  (:require [cognitect.aws.client.api :as aws]
-            [cognitect.aws.credentials :as credentials]
+  (:require [amazonica.core :as amazonica]
+            [amazonica.aws.s3 :as s3]
+            [amazonica.aws.s3transfer :as s3-transfer]
             [com.phronemophobic.dewey :as dewey]
             [com.phronemophobic.dewey.index :as index]
             [com.phronemophobic.taro :as taro]
@@ -16,16 +17,13 @@
 ;; generic ubuntu ami
 (def ami "ami-0574da719dca65348")
 
-(def s3-client (aws/client {:api :s3
-                            :region "us-west-1"
-                            #_#_:credentials-provider
-                            (credentials/profile-credentials-provider "dewey")}))
+(def s3-creds
+  (merge {}
+         (when-let [profile (System/getProperty "AWS_PROFILE")]
+           {:profile "dewey"
+            :endpoint "us-west-1"})))
 
-#_(def ec2-client (aws/client {:api :ec2
-                             :region "us-west-1"
-                             :credentials-provider
-                             (credentials/profile-credentials-provider "dewey")}))
-
+(amazonica/defcredential s3-creds)
 
 (def steps
   [{:f #'dewey/update-clojure-repo-index
@@ -41,6 +39,16 @@
 
 (def bucket "com-phronemophobic-dewey")
 (def key-prefix "releases")
+
+(defn get-object [key]
+  (try
+    (s3/get-object bucket
+                   key)
+    (catch Exception e
+      (if (= 404 (:status-code (amazonica/ex->map e)))
+        nil
+        ;; else
+        (throw e)))))
 
 (defn upload-file
   ([release-id file]
@@ -59,13 +67,10 @@
                        (recur (conj parts (.getName file))
                               (.getParentFile file))))
              key-parts (into [key-prefix release-id] parts)
-             request {:Bucket bucket
-                      :Key (clojure.string/join "/" key-parts)
-                      :Body is
-                      :ACL "private"}]
-         (prn request)
-         (aws/invoke s3-client {:op :PutObject
-                                :request request}))))))
+             key (clojure.string/join "/" key-parts)]
+         (s3/put-object bucket
+                        key
+                        is))))))
 
 (defn tar-gz!
   "Converts a directory to a tar.gz and returns the tar.gz file."
@@ -114,27 +119,19 @@
             key (clojure.string/join "/"
                                      [key-prefix release-id path])
             _ (print "downloading " key " ... ")
-            response
-            (aws/invoke s3-client
-                        {:op :GetObject
-                         :request
-                         {:Bucket bucket
-                          :Key key}})
+            response (get-object key)
             out-path (io/file release-dir path)
-            found? (not= (:cognitect.anomalies/category response)
-                         :cognitect.anomalies/not-found)]
-        (if found?
+            ]
+        (if response
           (do
-            (with-open [os (io/output-stream out-path)]
-             (io/copy (:Body response)
-                      os))
+            (with-open [os (io/output-stream out-path)
+                        is (:input-stream response)]
+              (io/copy is os))
             (if (:dir output)
               (untar-gz! out-path)
               (ungz! out-path))
             (println "done."))
           (println "not found."))))))
-
-
 
 (defn analyzed-repos
   "Checks s3 for already uploaded analysis for this release."
@@ -143,19 +140,17 @@
                    (fn [token]
                      (let [prefix (clojure.string/join "/"
                                                        [key-prefix release-id "analysis"])]
-                       (aws/invoke s3-client
-                                   {:op :ListObjectsV2
-                                    :request
-                                    (merge
-                                     {:Bucket bucket
-                                      :Prefix prefix}
-                                     (when token
-                                       {:ContinuationToken token}))})))
-                   :kf :NextContinuationToken
+                       (s3/list-objects-v2
+                        (merge
+                         {:bucket-name bucket
+                          :prefix prefix}
+                         (when token
+                           {:continuation-token token})))))
+                   :kf :next-continuation-token
                    )]
     (into #{}
-          (comp (mapcat :Contents)
-                (map :Key)
+          (comp (mapcat :object-summaries)
+                (map :key)
                 (map (fn [k]
                        (->> (clojure.string/split k #"/")
                             (drop 3)
@@ -283,18 +278,13 @@
     (let [analysis-fname "analysis.edn.gz"
           key (clojure.string/join "/"
                                    [key-prefix release-id analysis-fname])
-          response
-          (aws/invoke s3-client
-                      {:op :GetObject
-                       :request
-                       {:Bucket bucket
-                        :Key key}})
+          response (get-object key)
           out-path (io/file release-dir analysis-fname)]
-      (clojure.pprint/pprint
-       response)
-      (with-open [os (io/output-stream out-path)]
-        (io/copy (:Body response)
-                 os)))
+      (assert response "Missing analysis key.")
+      (clojure.pprint/pprint response)
+      (with-open [os (io/output-stream out-path)
+                  is (:input-stream response)]
+        (io/copy is os)))
 
     (dewey/make-github-release
      release-id
