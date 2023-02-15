@@ -57,20 +57,19 @@
    (if (.isDirectory file)
      (run! #(upload-file release-id base %) (.listFiles file))
      
-     (with-open [is (io/input-stream file)]
-       (let [parts (loop [ ;; since we're walking up the tree
-                          ;; use a list to reverse
-                          parts ()
-                          file file]
-                     (if (= file base)
-                       parts
-                       (recur (conj parts (.getName file))
-                              (.getParentFile file))))
-             key-parts (into [key-prefix release-id] parts)
-             key (clojure.string/join "/" key-parts)]
-         (s3/put-object bucket
-                        key
-                        is))))))
+     (let [parts (loop [ ;; since we're walking up the tree
+                        ;; use a list to reverse
+                        parts ()
+                        file file]
+                   (if (= file base)
+                     parts
+                     (recur (conj parts (.getName file))
+                            (.getParentFile file))))
+           key-parts (into [key-prefix release-id] parts)
+           key (clojure.string/join "/" key-parts)]
+       (s3/put-object bucket
+                      key
+                      file)))))
 
 (defn tar-gz!
   "Converts a directory to a tar.gz and returns the tar.gz file."
