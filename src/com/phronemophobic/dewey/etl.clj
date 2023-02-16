@@ -240,6 +240,7 @@
              (tree-seq #(.isDirectory %)
                        #(.listFiles %))
              (filter #(clojure.string/ends-with? (.getName %) ".edn.gz")))]
+    (println "combining analyses")
     (with-open [os (io/output-stream
                     (io/file release-dir
                              "analysis.edn.gz"))
@@ -251,8 +252,10 @@
         (println "[")
         (doseq [fname analyses-files
                 :let [data (try
+                             (.println System/out (str "including " fname))
                              (util/read-edn fname)
                              (catch Exception e
+                               (.println System/out (pr-str e))
                                nil))]
                 :when data
                 :let [analyses (data->analyses data)]]
