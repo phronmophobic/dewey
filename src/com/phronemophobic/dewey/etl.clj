@@ -168,7 +168,8 @@
                                 :git/sha (-> branch-info
                                              :commit
                                              :sha))))
-                       (filter :git/sha))
+                       (filter :git/sha)
+                       (take 100))
                  default-branches))
 
         already-analyzed (atom (analyzed-repos release-id))]
