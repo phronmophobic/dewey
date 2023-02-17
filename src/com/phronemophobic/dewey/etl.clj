@@ -191,7 +191,7 @@
                                   analysis)
             (upload-file release-id release-dir analysis-file)
             (swap! already-analyzed conj [owner repo-name])
-            (util/delete-tree analysis-dir true)))))))
+            #_(util/delete-tree analysis-dir true)))))))
 
 (defn run
   ([]
