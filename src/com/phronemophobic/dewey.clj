@@ -93,28 +93,48 @@
             (prn "sleeping " duration-ms)
             (Thread/sleep duration-ms)))))))
 
+(defn with-retries [step]
+  (fn [m]
+    (let [result
+          (try+
+           (step m)
+           (catch [:status 500] e
+             ::error))]
+      (if (= result ::error)
+        (let [error-count (get m ::error-count 0)]
+          (if (< error-count 3)
+            (do
+              ;; sleep for a second and then retry
+              (prn "received 500 error. retrying...")
+              (Thread/sleep 1000)
+              (recur (assoc m ::error-count (inc error-count))))
+            (throw (ex-info "Failed after retries"
+                            {:k m}))))
+        result))))
+
 (defn find-clojure-repos []
   (iteration
-   (fn [{:keys [url num-stars last-response] :as k}]
-     (prn (select-keys k [:url :num-stars]))
-     (let [req
-           (cond
-             ;; initial request
-             (nil? k) (search-repos-request "language:clojure")
+   (with-retries
+     (fn [{:keys [url num-stars last-response] :as k}]
+       (prn (select-keys k [:url :num-stars]))
+       (let [req
+             (cond
+               ;; initial request
+               (nil? k) (search-repos-request "language:clojure")
 
-             ;; received next-url
-             url (assoc base-request
-                        :url url)
+               ;; received next-url
+               url (assoc base-request
+                          :url url)
 
-             ;; received star number
-             num-stars (search-repos-request (str "language:clojure " "stars:" num-stars))
+               ;; received star number
+               num-stars (search-repos-request (str "language:clojure " "stars:" num-stars))
 
-             :else (throw (Exception. (str "Unexpected key type: " (pr-str k)))))]
-       (rate-limit-sleep! last-response)
-       (let [response (http/request (with-auth req))]
-         (assoc response
-                ::key k
-                ::request req))))
+               :else (throw (Exception. (str "Unexpected key type: " (pr-str k)))))]
+         (rate-limit-sleep! last-response)
+         (let [response (http/request (with-auth req))]
+           (assoc response
+                  ::key k
+                  ::request req)))))
    :kf
    (fn [response]
      (let [num-stars (-> response
@@ -271,18 +291,19 @@
 
 (defn find-tags [repos]
   (iteration
-   (fn [{:keys [repos last-response] :as k}]
-     (let [repo (first repos)
-           req {:url (:tags_url repo)
-                :as :json
-                :method :get}]
-       (prn req)
-       (rate-limit-sleep! last-response)
-       (let [response (http/request (with-auth req))]
-         (assoc response
-                ::repo repo
-                ::key k
-                ::request req))))
+   (with-retries
+     (fn [{:keys [repos last-response] :as k}]
+       (let [repo (first repos)
+             req {:url (:tags_url repo)
+                  :as :json
+                  :method :get}]
+         (prn req)
+         (rate-limit-sleep! last-response)
+         (let [response (http/request (with-auth req))]
+           (assoc response
+                  ::repo repo
+                  ::key k
+                  ::request req)))))
    :vf (juxt ::repo :body)
    :kf
    (fn [response]
@@ -318,21 +339,22 @@
 
 (defn find-default-branches [repos]
   (iteration
-   (fn [{:keys [repos last-response] :as k}]
-     (let [repo (first repos)
-           req {:url (str/replace (:branches_url repo)
-                                  #"\{/branch}"
-                                  (str "/" (:default_branch repo)))
-                :unexceptional-status #(or (http/unexceptional-status? %)
-                                           (= % 404))
-                :as :json
-                :method :get}]
-       (rate-limit-sleep! last-response)
-       (let [response (http/request (with-auth req))]
-         (assoc response
-                ::repo repo
-                ::key k
-                ::request req))))
+   (with-retries
+     (fn [{:keys [repos last-response] :as k}]
+       (let [repo (first repos)
+             req {:url (str/replace (:branches_url repo)
+                                    #"\{/branch}"
+                                    (str "/" (:default_branch repo)))
+                  :unexceptional-status #(or (http/unexceptional-status? %)
+                                             (= % 404))
+                  :as :json
+                  :method :get}]
+         (rate-limit-sleep! last-response)
+         (let [response (http/request (with-auth req))]
+           (assoc response
+                  ::repo repo
+                  ::key k
+                  ::request req)))))
    :vf (juxt ::repo :body)
    :kf
    (fn [response]
