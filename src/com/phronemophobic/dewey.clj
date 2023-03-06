@@ -54,7 +54,7 @@
          :method :post
          :content-type :json
          :form-params {"tag_name" release-id
-                       "target_commitish" sha
+                       "target_commitish" "main"
                        "name" release-id
                        "draft" true
                        "prerelease" false}
