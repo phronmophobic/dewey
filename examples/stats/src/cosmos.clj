@@ -1,7 +1,22 @@
 (ns cosmos
   "Utilities for exporting data for viewing namespaces on https://cosmograph.app/run/."
   (:require [clojure.java.io :as io]
-            [stats :refer [analyses-iter]]))
+            [com.phronemophobic.clj-graphviz :refer [render-graph]]
+            [util :refer [analyses-iter
+                          analyses-seq]]))
+
+(defn write-edn [w obj]
+  (binding [*print-length* nil
+            *print-level* nil
+            *print-dup* false
+            *print-meta* false
+            *print-readably* true
+
+            ;; namespaced maps not part of edn spec
+            *print-namespace-maps* false
+
+            *out* w]
+    (pr obj)))
 
 (defn write-csv
   "Writes a csv file to `output` with two columns. Each row is a unique pair of an ns usage: from-ns,to-ns.
@@ -92,12 +107,93 @@
                            (map (fn [ns]
                                   [ns 1])))
                      usages)
-               usages)]
-    (write-csv graph
-               ["id" "points"]
-               "graph-metadata.csv")
-    (write-csv (eduction
-                (map (juxt :from :to))
-                usages)
-               ["from" "to"]
-               "graph.csv")))
+               usages)
+
+        cosmos-weights
+        (into
+         {}
+         (map (fn [[k v]]
+                [(str k) (/ (+ 0.5 (Math/log v))
+                            4.0)]))
+         graph)
+
+        max-weight (apply max (vals cosmos-weights))
+
+        cosmos-edges
+        (into []
+              (comp
+               (map (juxt :from :to))
+               (map (fn [edge]
+                      (mapv str edge)))
+               (map (fn [edge]
+                      (mapv (fn [nid]
+                              (let [weight (get cosmos-weights nid)
+                                    ratio (/ weight
+                                             max-weight)
+                                    fillcolor (-> (* ratio 8)
+                                                  (Math/round)
+                                                  int
+                                                  inc
+                                                  str)
+                                    ]
+                                {:id nid
+                                 "fillcolor" fillcolor
+                                 "width" (format "%.2f" weight)
+                                 "height" (format "%.2f" weight)}))
+                            edge))))
+              usages)]
+    (render-graph {:edges cosmos-edges
+                   :default-attributes
+                   {:node {"fixedsize" "true"
+                           "label" ""
+                           "width" "0.05"
+                           "style" "filled"
+                           "fillcolor" "black"
+                           "color" "#00000000"
+                           "colorscheme" "bupu9"
+                           "height" "0.05"}
+                    :edge {"color" "grey93"}
+                    :graph {"overlap" "false"
+                            "outputorder" "edgesfirst"}}
+                   :flags #{:directed}}
+                  {:layout-algorithm :sfdp
+                   :filename "cosmos.jpeg"})))
+
+(defn dump-project-edges [analysis]
+  (let [;; analysis-fname (first args)
+        ;;analysis (take 200 (analyses-seq analysis-fname))
+        repo-by-ns (transduce
+                    (comp (map (juxt :repo :analysis))
+                          (mapcat (fn [[repo analysis]]
+                                    (eduction
+                                     (map (fn [ns-def]
+                                            [(:name ns-def) repo]))
+                                     (:namespace-definitions analysis)))))
+                    (completing
+                     (fn [by-repo [repo name]]
+                       (update by-repo repo 
+                               (fnil conj #{}) name)))
+                    {}
+                    analysis)
+        repo-edges
+        (into
+         #{}
+         (comp (map (juxt :repo :analysis))
+               (mapcat (fn [[repo analysis]]
+                         (eduction
+                          (map (fn [usage]
+                                 (when-let [to-repos (get repo-by-ns (:to usage))]
+                                  [repo to-repos])))
+                          (remove nil?)
+                          (:namespace-usages analysis)))))
+         analysis)]
+    (with-open [writer (io/writer "project-edges.edn")]
+      (write-edn writer
+                 repo-edges))))
+
+(comment
+  (def my-analysis (analyses-iter "../../releases/2023-03-06/analysis.edn.gz"))
+
+  (-main "../../releases/2023-03-06/analysis.edn.gz")
+
+  ,)
