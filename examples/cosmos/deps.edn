@@ -1,0 +1,17 @@
+{:paths ["src"]
+ :deps {com.phronemophobic/dewey {:local/root "../../"}
+        com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.12-beta"}
+        ;; com.github.davidmoten/rtree {:mvn/version "0.8.7"}
+        com.phronemophobic/membrane {:mvn/version "0.12.2-beta"}
+        com.phronemophobic/clj-graphviz {:mvn/version "0.5.0"}
+        com.phronemophobic/treemap-clj {:mvn/version "0.2.6"}}
+ :aliases
+ {
+
+
+  :cosmos
+  {:main-opts ["-m" "cosmos"]}
+
+  :project
+  {:extra-deps {}}}}
+
