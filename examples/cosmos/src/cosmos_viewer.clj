@@ -72,7 +72,7 @@
                    (ui/rounded-rectangle width height radius))))))
         nodes))
 
-(defui cosmos-viewer [{:keys [rtree hover edges-by-id]}]
+(defui cosmos-viewer [{:keys [nodes-rtree hover edges-by-id]}]
   (let [{:keys [mx my]} extra]
     (ui/vertical-layout
      (ui/fixed-bounds [200
@@ -87,7 +87,7 @@
        (fn [[x y]]
          (let [x (/ x 0.0390449239785968 )
                y (/ y 0.0390449239785968 )
-               hits (seq (jsearch rtree [x y]))]
+               hits (seq (jsearch nodes-rtree [x y]))]
            (if hits
              (let [biggest-hit
                    (->> hits
@@ -108,67 +108,75 @@
           (edges-by-id hover))))])))
 
 
-(comment
-  
 
-  (def cosmos-graph (read-edn "../stats/cosmos-graph.edn"))
-  (def graph-layout
-    #_(gv/layout cosmos-graph :sfdp)
-    (read-edn "cosmos-layout.edn"))
+(defn load-state []
+  (let [
+        cosmos-graph (read-edn "../stats/cosmos-graph.edn")
+
+        graph-layout
+        #_(gv/layout cosmos-graph :sfdp)
+        (read-edn "cosmos-layout.edn")
+
+        nodes-rtree (jtree (:nodes graph-layout))
+
+        coords-by-id
+        (into {}
+              (map (fn [{:keys [x y id]}]
+                     [id [x y]]))
+              (:nodes graph-layout))
+
+        edges-by-id
+        (into {}
+              (map (fn [[id edges]]
+                     [id
+                      (ui/scale 0.0390449239785968
+                                0.0390449239785968
+                                (ui/with-style ::ui/style-stroke
+                                  (ui/with-color [1 0 0]
+                                    (into []
+                                          (map (fn [[from to]]
+                                                 (ui/path (coords-by-id (:id from))
+                                                          (coords-by-id (:id to)))))
+                                          edges))))]))
+              (group-by #(-> % second :id)
+                        (:edges cosmos-graph)))
+
+        colors-by-id
+        (into {}
+              (comp
+               cat
+               (map (fn [{id :id
+                          fillcolor "fillcolor"
+}]
+                      ;; (prn fillcolor (get m "fillcolor"))
+                      [id (nth (:brbg9 colors/palettes) (dec (parse-long fillcolor)))])))
+              (:edges cosmos-graph))]
+    {:cosmos-graph cosmos-graph
+     :graph-layout graph-layout
+     :nodes-rtree nodes-rtree
+     :coords-by-id coords-by-id
+     :edges-by-id edges-by-id
+     :colors-by-id colors-by-id}))
+
+(defonce app-state (atom nil))
+
+(defn show! []
+
+  (swap! app-state
+         (fn [state]
+           (if state
+             state
+             (load-state))))
+
+  (backend/run (make-app #'cosmos-viewer app-state))  
+
+
+  ,)
+
+(comment
 
   (with-open [w (io/writer "cosmos-layout.edn")]
-    (write-edn w graph-layout))
-
-
-  (def my-rtree (jtree (:nodes graph-layout)))
-
-  (jsearch my-rtree [100 100])
-
-  (def maxx
-    (->> graph-layout
-         :nodes
-         (map :x)
-         (apply max)))
-
-  (def maxy
-    (->> graph-layout
-         p         (map :x)
-         :nodes
-         (apply max)))
-
-  (def coords-by-id
-    (into {}
-          (map (fn [{:keys [x y id]}]
-                 [id [x y]]))
-          (:nodes graph-layout)))
-
-  (def edges-by-id
-    (into {}
-          (map (fn [[id edges]]
-                 [id
-                  (ui/scale 0.0390449239785968
-                            0.0390449239785968
-                            (ui/with-style ::ui/style-stroke
-                              (ui/with-color [1 0 0]
-                                (into []
-                                      (map (fn [[from to]]
-                                             (ui/path (coords-by-id (:id from))
-                                                      (coords-by-id (:id to)))))
-                                      edges))))]))
-          (group-by #(-> % second :id)
-                    (:edges cosmos-graph))))
-
-  (def colors-by-id
-    (into {}
-          (comp
-           cat
-           (map (fn [{id :id
-                      fillcolor "fillcolor"
-                      :as m}]
-                  ;; (prn fillcolor (get m "fillcolor"))
-                  [id (nth (:brbg9 colors/palettes) (dec (parse-long fillcolor)))])))
-          (:edges cosmos-graph)))
-
+    (write-edn w (gv/layout cosmos-graph :sfdp)))
 
   (backend/save-image "my-cosmos.jpeg"
                       (ui/scale
@@ -178,10 +186,8 @@
                          (ui/with-color [0 0 0]
                            (cosmos-view (:nodes graph-layout)
                                         colors-by-id)))))
-  
 
-  (backend/run (make-app #'cosmos-viewer {:rtree my-rtree
-                                          :edges-by-id edges-by-id
-                                          :hover nil}))  
+  (def my-state (time
+                 (load-state)))
 
   ,)
