@@ -101,7 +101,7 @@
               [:set $mx x]
               [:set $my y]]
              )))
-       (ui/image "my-cosmos.jpeg"))
+       (ui/image "clojure-namespace-graph.jpeg"))
       (ui/no-events
        (when hover
          (ui/->Cached
@@ -146,9 +146,7 @@
               (comp
                cat
                (map (fn [{id :id
-                          fillcolor "fillcolor"
-}]
-                      ;; (prn fillcolor (get m "fillcolor"))
+                          fillcolor "fillcolor"}]
                       [id (nth (:brbg9 colors/palettes) (dec (parse-long fillcolor)))])))
               (:edges cosmos-graph))]
     {:cosmos-graph cosmos-graph
