@@ -141,7 +141,7 @@ It's possible that github's [GraphQL API](https://docs.github.com/en/graphql) mi
 
 Now that we've bothered to catalog of all of the clojure repos on github, there's several interesting projects we can do that use the data:
 - ~~Download and run static analysis across repos~~ Done! see analysis.edn.gz in releases.
-- Create a website that combines the clojars data API with dewey's data to make it easier to search for clojure libraries.
+- ~~Create a website that combines the clojars data API with dewey's data to make it easier to search for clojure libraries.~~ Done! see [web search interface](https://phronmophobic.github.io/dewey/search.html).
 - Integrate the data into tools and IDEs
   - deps.edn editor that knows the available libraries and versions
   - Find example usages for libraries or specific functions (for [example](https://github.com/phronmophobic/add-deps))
