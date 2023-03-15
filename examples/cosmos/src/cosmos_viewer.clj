@@ -176,17 +176,32 @@
   (with-open [w (io/writer "cosmos-layout.edn")]
     (write-edn w (gv/layout cosmos-graph :sfdp)))
 
+  (let [cosmos-graph (:cosmos-graph @app-state)
+        coords-by-id (:coords-by-id @app-state)]
+   (backend/save-image "clojure-edges.jpeg"
+                       (ui/scale 0.0390449239785968
+                                 0.0390449239785968
+                                 (ui/with-style ::ui/style-stroke
+                                   (ui/with-color
+                                     [0.66 0.66 0.66 0.4]
+                                     #_[0 0.66 0 0.25]
+                                     (into []
+                                           (map (fn [[from to]]
+                                                  (ui/path (coords-by-id (:id from))
+                                                           (coords-by-id (:id to)))))
+                                           (:edges cosmos-graph)))))))
+
 
   (let [cosmos-graph (:cosmos-graph @app-state)
         graph-layout (:graph-layout @app-state)
         palette (:paired9 colors/palettes)
         colors-by-id (into {}
-                               (comp
-                                cat
-                                (map (fn [{id :id
-                                           fillcolor "fillcolor"}]
-                                       [id (nth palette (dec (parse-long fillcolor)))])))
-                               (:edges cosmos-graph))]
+                           (comp
+                            cat
+                            (map (fn [{id :id
+                                       fillcolor "fillcolor"}]
+                                   [id (nth palette (dec (parse-long fillcolor)))])))
+                           (:edges cosmos-graph))]
     (backend/save-image "clojure-namespace-graph.jpeg"
                         (ui/scale
                          0.0390449239785968
