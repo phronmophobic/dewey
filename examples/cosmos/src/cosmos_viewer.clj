@@ -5,7 +5,7 @@
             [clojure.string :as str]
             [membrane.component :as component
              :refer [defui defeffect make-app]]
-                        [clojure.edn :as edn]
+            [clojure.edn :as edn]
             [com.phronemophobic.clj-graphviz :as gv]
             [treemap-clj.rtree :as rtree]
             colors
