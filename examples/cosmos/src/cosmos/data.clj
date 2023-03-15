@@ -135,7 +135,7 @@
   (let [g (cosmos-graph analyses)]
     (with-open [w (io/writer "cosmos-graph.edn")]
       (write-edn w g))
-    (let [graph-layout (gv/layout cosmos-graph :sfdp)]
+    (let [graph-layout (gv/layout g :sfdp)]
       (with-open [w (io/writer "cosmos-layout.edn")]
         (write-edn w graph-layout)))))
 
