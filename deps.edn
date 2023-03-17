@@ -1,5 +1,5 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.0"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         clj-http/clj-http {:mvn/version "3.12.3"}
         cheshire/cheshire {:mvn/version "5.10.2"}
         slingshot/slingshot {:mvn/version "0.12.2"}
