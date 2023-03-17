@@ -83,6 +83,10 @@
                                     :keywords true
                                     :arglists true
                                     :protocol-impls true
+                                    :java-class-definitions true
+                                    :java-class-usages true
+                                    :java-member-definitions true
+                                    :instance-invocations true
                                     :var-definitions {:meta true}
                                     :namespace-definitions {:meta true}}
                          :linters (default-linters-off)}}]
