@@ -299,7 +299,10 @@
                   :method :get}]
          (prn req)
          (rate-limit-sleep! last-response)
-         (let [response (http/request (with-auth req))]
+         (let [response (try+
+                         (http/request (with-auth req))
+                         (catch [:status 404] e
+                           {:body []}))]
            (assoc response
                   ::repo repo
                   ::key k
