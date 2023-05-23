@@ -33,6 +33,26 @@
 (defn search-repos-request [query]
   (assoc-in base-request [:query-params :q] query))
 
+(defn list-releases []
+  (let [list-release-req
+        {:url (str api-base-url
+                   "/repos/phronmophobic/dewey/releases")
+         :method :get
+         :content-type :json
+         :as :json}]
+    (http/request (with-auth list-release-req))))
+
+(defn publish-release [release-id]
+  (let [publish-release-req
+        {:url (str api-base-url
+                   "/repos/phronmophobic/dewey/releases/"
+                   release-id)
+         :method :patch
+         :content-type :json
+         :form-params {"draft" false}
+         :as :json}]
+    (http/request (with-auth publish-release-req))))
+
 (defn make-github-release [release-id sha files]
   (let [make-tag-req
         {:url (str api-base-url
@@ -74,7 +94,9 @@
              :body file
              :as :json}]
         (prn "uploading" (.getName file))
-        (http/request (with-auth upload-req))))))
+        (http/request (with-auth upload-req))))
+
+    (publish-release github-release-id)))
 
 (defn rate-limit-sleep! [response]
   (when response
