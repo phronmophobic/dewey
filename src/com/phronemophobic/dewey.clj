@@ -121,6 +121,8 @@
           (try+
            (step m)
            (catch [:status 500] e
+             ::error)
+           (catch [:status 502] e
              ::error))]
       (if (= result ::error)
         (let [error-count (get m ::error-count 0)]
