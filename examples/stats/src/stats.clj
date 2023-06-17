@@ -101,7 +101,9 @@
       (shutdown-agents))))
 
 (comment
+
+  (def full-analysis (analyses-iter "../cosmos/releases/2023-03-17/analysis.edn.gz"))
   (def analysis
-    (doall (take 200 (analyses-seq "../../releases/f33b5afb-9dc6-48c5-a250-7496b7edcbd3/analysis.edn.gz"))))
-  
+    (doall (take 200 full-analysis)))
+
   ,)
