@@ -2,7 +2,9 @@
   (:require [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
             [clojure.edn :as edn]
-            [util :refer analyses-iter])
+            [com.phronemophobic.dewey.util
+             :refer [analyses-iter
+                     analyses-seq]])
   )
 
 
@@ -63,6 +65,12 @@
    {:xform (comp (map :analysis)
                  (mapcat :namespace-usages)
                  (map :to))
+    :rf frequencies-rf}
+
+   :java-class-frequencies
+   {:xform (comp (map :analysis)
+                 (mapcat :java-class-usages)
+                 (map :class))
     :rf frequencies-rf}})
 
 (defn run-stats
