@@ -1,0 +1,12 @@
+{:deps {org.clojure/clojure {:mvn/version "1.12.0-alpha3"}
+        com.phronemophobic/dewey {:local/root "../../"}
+        com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.12-beta"}
+        org.clojure/data.json {:mvn/version "2.4.0"}
+        com.phronemophobic/membrane {:mvn/version "0.12.2-beta"}
+        datalevin/datalevin {:mvn/version "0.8.16"}}
+ :aliases
+ {:project
+  {:extra-deps {com.phronemophobic/schematic {:local/root "../../../schematic"}}
+   :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
+              "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+              "-Xmx12g"]}}}
