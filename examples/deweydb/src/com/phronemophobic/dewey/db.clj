@@ -15,7 +15,8 @@
 (def schema
   {
    ;; analysis
-   :com.phronemophobic.dewey.db/repo {:db/valueType :db.type/string}
+   :com.phronemophobic.dewey.db/repo {:db/valueType :db.type/string
+                                      :db/fulltext true}
    :com.phronemophobic.dewey.db/analyze-instant {:db/valueType :db.type/instant}
    :git/sha {:db/valueType :db.type/string}
    :com.phronemophobic.dewey.db/basis {:db/valueType :db.type/string}
@@ -47,7 +48,8 @@
    :com.phronemophobic.dewey.db/defined-by {:db/valueType :db.type/symbol}
    :com.phronemophobic.dewey.db/defmethod {:db/valueType :db.type/boolean}
    :com.phronemophobic.dewey.db/dispatch-val-str {:db/valueType :db.type/string}
-   :com.phronemophobic.dewey.db/doc {:db/valueType :db.type/string}
+   :com.phronemophobic.dewey.db/doc {:db/valueType :db.type/string
+                                     :db/fulltext true}
    :com.phronemophobic.dewey.db/end-col {:db/valueType :db.type/long}
    :com.phronemophobic.dewey.db/end-row {:db/valueType :db.type/long}
    :com.phronemophobic.dewey.db/export {:db/valueType :db.type/boolean}
@@ -66,7 +68,8 @@
    :com.phronemophobic.dewey.db/name-end-row {:db/valueType :db.type/long}
    :com.phronemophobic.dewey.db/name-row {:db/valueType :db.type/long}
    :com.phronemophobic.dewey.db/no-doc {:db/valueType :db.type/boolean}
-   :com.phronemophobic.dewey.db/ns {:db/valueType :db.type/symbol}
+   :com.phronemophobic.dewey.db/ns {:db/valueType :db.type/symbol
+                                    :db/fulltext true}
    :com.phronemophobic.dewey.db/private {:db/valueType :db.type/boolean}
    :com.phronemophobic.dewey.db/protocol-name {:db/valueType :db.type/symbol}
    :com.phronemophobic.dewey.db/refer {:db/valueType :db.type/boolean}
@@ -81,9 +84,11 @@
 
    ;; need coercion. they return some combination of strings, symbols, and keywords
    :com.phronemophobic.dewey.db/method-name {:db/valueType :db.type/string}
-   :com.phronemophobic.dewey.db/name {:db/valueType :db.type/string}
+   :com.phronemophobic.dewey.db/name {:db/valueType :db.type/string
+                                      :db/fulltext true}
    :com.phronemophobic.dewey.db/protocol-ns {:db/valueType :db.type/string}
-   :com.phronemophobic.dewey.db/to {:db/valueType :db.type/string}
+   :com.phronemophobic.dewey.db/to {:db/valueType :db.type/string
+                                    :db/fulltext true}
 
    ;; :com.phronemophobic.dewey.db/derived-location 
    ;; :com.phronemophobic.dewey.db/meta map
@@ -179,8 +184,10 @@
     (doall (take 200 full-analysis)))
   ,
 
-;; Create DB on disk and connect to it, assume write permission to create given dir
-  (def conn (d/get-conn "/tmp/datalevin/mydb17" schema))
+
+  ;; Create DB on disk and connect to it, assume write permission to create given dir
+  (def conn (d/get-conn "db/" schema))
+  (do (d/datalog-index-cache-limit @conn 0) nil)
 
   (d/transact!
      conn
@@ -190,7 +197,9 @@
 
   ;; load full analysis
   (doseq [[i a] (map-indexed vector full-analysis)
-          :when (> i 8638)]
+          :when (> i 10637)
+          :while (not (Thread/interrupted))
+          ]
     (let [tx (analysis->tx "2023-06-12"
                            a)]
       (prn i (:repo a))
