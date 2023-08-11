@@ -123,13 +123,15 @@
            (catch [:status 500] e
              ::error)
            (catch [:status 502] e
+             ::error)
+           (catch [:status 503] e
              ::error))]
       (if (= result ::error)
         (let [error-count (get m ::error-count 0)]
           (if (< error-count 3)
             (do
               ;; sleep for a second and then retry
-              (prn "received 500 error. retrying...")
+              (prn "received 50X error. retrying...")
               (Thread/sleep 1000)
               (recur (assoc m ::error-count (inc error-count))))
             (throw (ex-info "Failed after retries"
