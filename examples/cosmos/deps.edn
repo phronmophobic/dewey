@@ -4,8 +4,9 @@
         com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.12-beta"}
         ;; com.github.davidmoten/rtree {:mvn/version "0.8.7"}
         com.phronemophobic/membrane {:mvn/version "0.12.2-beta"}
-        com.phronemophobic/clj-graphviz {:mvn/version "0.5.0"}
+        com.phronemophobic/clj-graphviz {:mvn/version "0.6.4"}
         com.phronemophobic/treemap-clj {:mvn/version "0.2.6"}
+        com.phronemophobic.cljonda/graphviz-darwin-aarch64 {:mvn/version "2.50.0-0.9.5"}
         org.clojure/data.json {:mvn/version "2.4.0"}}
  :aliases
  {
