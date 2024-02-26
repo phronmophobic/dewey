@@ -125,6 +125,8 @@
            (catch [:status 502] e
              ::error)
            (catch [:status 503] e
+             ::error)
+           (catch [:status 504] e
              ::error))]
       (if (= result ::error)
         (let [error-count (get m ::error-count 0)]
