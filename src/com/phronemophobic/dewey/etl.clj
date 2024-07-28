@@ -19,6 +19,8 @@
 
 (def s3-creds
   (merge {}
+         {:profile "dewey"
+          :endpoint "us-east-1"}
          (when-let [profile (System/getProperty "AWS_PROFILE")]
            {:profile "dewey"
             :endpoint "us-east-1"})))
@@ -45,6 +47,7 @@
     (s3/get-object bucket
                    key)
     (catch Exception e
+      (clojure.pprint/pprint e)
       (if (= 404 (:status-code (amazonica/ex->map e)))
         nil
         ;; else
