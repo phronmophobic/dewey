@@ -230,6 +230,7 @@
           (let [name (:name repo)
                 owner (-> repo :owner :login)
                 _ (print i "/" repo-count  " checking " name owner "...")
+                ;; add retries?
                 result (http/request (with-auth
                                        {:url (fname-url repo fname)
                                         :method :get
