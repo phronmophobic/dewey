@@ -8,6 +8,7 @@ Analysis:
 Web frontends:
 - [Search](https://phronmophobic.github.io/dewey/search.html)
 - [Topics](https://phronmophobic.github.io/dewey/topics.html)
+- [Cloogle](https://cloogle.phronemophobic.com/doc-search.html)
 
 ## Rationale
 
