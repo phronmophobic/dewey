@@ -259,7 +259,7 @@
                              (binding [*out* stdout]
                                (println (str "including " fname)))
                              (util/read-edn fname)
-                             (catch Exception e
+                             (catch Throwable e
                                (binding [*out* stdout]
                                  (prn e))
                                nil))]
