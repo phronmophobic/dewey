@@ -159,6 +159,11 @@
                             (into [])))))
           responses)))
 
+(def problematic-index-repos
+  #{
+    ["penpot" "penpot"] ;; Runs out of Java Heap Memory
+    })
+
 (defn index-release [release-id]
   (let [release-dir (dewey/release-dir release-id)
         repos (let [default-branches
@@ -174,11 +179,12 @@
                  default-branches))
 
         already-analyzed (atom (analyzed-repos release-id))]
-    (doseq [repo repos]
-      (let [
-            owner (-> repo :owner :login)
-            repo-name (:name repo)
-            analysis-dir (io/file release-dir
+    (doseq [repo repos
+            :let [owner (-> repo :owner :login)
+                  repo-name (:name repo)]
+            :when (not (contains? problematic-index-repos
+                                  [owner repo-name]))]
+      (let [analysis-dir (io/file release-dir
                                   "analysis"
                                   owner
                                   repo-name)
