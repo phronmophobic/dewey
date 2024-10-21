@@ -1,7 +1,7 @@
 {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
-        clj-http/clj-http {:mvn/version "3.12.3"}
-        cheshire/cheshire {:mvn/version "5.10.2"}
+        clj-http/clj-http {:mvn/version "3.13.0"}
+        cheshire/cheshire {:mvn/version "5.13.0"}
         slingshot/slingshot {:mvn/version "0.12.2"}
         clj-kondo/clj-kondo {;;  :mvn/version "2022.08.03"
                              ;; :mvn/version "2023.02.17"
@@ -13,6 +13,10 @@
         io.github.phronmophobic/taro {:git/sha "481ab2fa650b52330bc794d2e170036c34233e82" :git/tag "v1.2"}
         amazonica/amazonica {:mvn/version "0.3.163"}
         com.rpl/specter {:mvn/version "1.1.4"}
+        com.github.seancorfield/next.jdbc {:mvn/version "1.3.939"}
+        org.xerial/sqlite-jdbc {:mvn/version "3.46.0.0"}
+        com.github.seancorfield/honeysql {:mvn/version "2.6.1147"}
+        datalevin/datalevin {:mvn/version "0.9.8"}
         }
  :aliases
  {:test {:extra-paths ["test"]
@@ -24,7 +28,10 @@
   {:extra-deps {com.phronemophobic/membrane {:mvn/version "0.9.31.8-beta"}
                 com.phronemophobic.membrane/skialib-macosx-aarch64 {:mvn/version "0.9.31.0-beta"}
                 com.phronemophobic/spreadsheet {:local/root "../spreadsheet"}}
-   :jvm-opts ["-DAWS_PROFILE=dewey"]}
+   :jvm-opts ["-DAWS_PROFILE=dewey"
+              ;; for datalevin
+              "--add-opens=java.base/java.nio=ALL-UNNAMED"
+              "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"]}
 
   :analysis
   {:jvm-opts ["-Xmx32G"]}

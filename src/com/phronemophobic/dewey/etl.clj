@@ -6,6 +6,7 @@
             [com.phronemophobic.dewey.index :as index]
             [com.phronemophobic.taro :as taro]
             [com.phronemophobic.dewey.util :as util]
+            [com.phronemophobic.dewey.db.sqlite :as sqlite]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
@@ -274,7 +275,12 @@
      (download-release release-id)
      (index-release release-id)
      (combine-analyses release-id)
-     (upload-file release-id (io/file release-dir "analysis.edn.gz")))))
+     (upload-file release-id (io/file release-dir "analysis.edn.gz"))
+
+     (let [sql-file (sqlite/index->db (io/file release-dir "analysis.edn.gz"))]
+       (upload-file release-id sql-file)))))
+
+
 
 (defn make-release [release-id sha]
   (let [release-dir (dewey/release-dir release-id)]
