@@ -292,23 +292,25 @@
   (let [release-dir (dewey/release-dir release-id)]
 
     (download-release release-id)
-    ;; download analysis
-    (let [analysis-fname "analysis.edn.gz"
-          key (clojure.string/join "/"
-                                   [key-prefix release-id analysis-fname])
-          response (get-object key)
-          out-path (io/file release-dir analysis-fname)]
-      (assert response "Missing analysis key.")
-      (clojure.pprint/pprint response)
-      (with-open [os (io/output-stream out-path)
-                  is (:input-stream response)]
-        (io/copy is os)))
+    ;; download analysis and sql
+    (doseq [fname ["analysis.edn.gz"
+                   "dewey.sqlite3.sql.gz"]]
+      (let [key (clojure.string/join "/"
+                                     [key-prefix release-id fname])
+            response (get-object key)
+            out-path (io/file release-dir fname)]
+        (assert response "Missing key.")
+        (clojure.pprint/pprint response)
+        (with-open [os (io/output-stream out-path)
+                    is (:input-stream response)]
+          (io/copy is os))))
 
     (dewey/make-github-release
      release-id
      sha
      (for [fname ["all-repos.edn.gz"
                   "analysis.edn.gz"
+                  "dewey.sqlite3.sql.gz"
                   "default-branches.edn.gz"
                   "deps-libs.edn.gz"
                   "deps-tags.edn.gz"
