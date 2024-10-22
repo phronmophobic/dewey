@@ -24,6 +24,7 @@ Pre-retrieved data can be found at [releases](https://github.com/phronmophobic/d
 
 Each release includes the following files in .gz or tar.gz format:
 
+- `dewey.sqlite3.sql.gz`: A sqlite3 dump with all of the analysis data. It can be loaded into sqlite db with `gzcat dewey.sqlite3.sql.gz | sqlite3 dewey.sqlite`.
 - `deps-libs.edn`: This the best place to start if you're using the data. It's a map of library name to library info for all clojure github libraries that have `deps.edn` files on their default branch.
   - Library info keys:
     - `:description` The github repo description.
