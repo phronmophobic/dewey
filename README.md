@@ -4,11 +4,13 @@ Index of Clojure libraries available on github.
 
 Analysis:
 - [Analyzing Every Clojure Project on Github](https://blog.phronemophobic.com/dewey-analysis.html)
+- [Dewey SQL](https://blog.phronemophobic.com/dewey-sql.html)
 
 Web frontends:
 - [Search](https://phronmophobic.github.io/dewey/search.html)
 - [Topics](https://phronmophobic.github.io/dewey/topics.html)
 - [Cloogle](https://cloogle.phronemophobic.com/doc-search.html)
+- [Name Search](https://cloogle.phronemophobic.com/name-search.html)
 
 ## Rationale
 
