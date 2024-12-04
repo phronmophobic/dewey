@@ -3,7 +3,7 @@ set -e
 set -x
 
 apt -y update
-DEBIAN_FRONTEND=noninteractive apt -y install emacs-lucid openjdk-18-jre-headless rlwrap awscli unzip leiningen git build-essential
+DEBIAN_FRONTEND=noninteractive apt -y install emacs-lucid openjdk-21-jre-headless rlwrap unzip leiningen git build-essential
 
 curl -O https://download.clojure.org/install/linux-install.sh
 chmod 755 linux-install.sh
