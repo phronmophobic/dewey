@@ -289,33 +289,33 @@
      (.mkdirs fname-dir)
      
      (with-file-cache-db
-         [db release-id]
-       (doseq [[i repo] (map-indexed vector repos)]
-         (let [name (:name repo)
-               owner (-> repo :owner :login)
-               _ (print i "/" repo-count  " checking " name owner "...")
-               
-               url (fname-url repo fname)
-               k {:git/sha (:git/sha repo)
-                  :repo name
-                  :owner owner
-                  :file fname}
-               bs (db/lookup-file db k (fn [] (do-download url)))
-               
-               output-file (repo->file repo fname-dir fname)]
-           
-           (case bs
-             
-             ::too-big (println "file too big! skipping...")
-             ::missing (println "not found" )
-             
-             ;; else
-             (do
-               (when-not (bytes? bs)
-                 (throw (Exception. "expected byte array")))
-               (println "found.")
-               (.mkdirs (.getParentFile output-file))
-               (io/copy bs output-file)))))))))
+      [db release-id]
+      (doseq [[i repo] (map-indexed vector repos)]
+        (let [name (:name repo)
+              owner (-> repo :owner :login)
+              _ (print i "/" repo-count  " checking " name owner "...")
+              
+              url (fname-url repo fname)
+              k {:git/sha (:git/sha repo)
+                 :repo name
+                 :owner owner
+                 :file fname}
+              bs (lookup-file db k (fn [] (do-download url)))
+              
+              output-file (repo->file repo fname-dir fname)]
+          
+          (case bs
+            
+            ::too-big (println "file too big! skipping...")
+            ::missing (println "not found" )
+            
+            ;; else
+            (do
+              (when-not (bytes? bs)
+                (throw (Exception. "expected byte array")))
+              (println "found.")
+              (.mkdirs (.getParentFile output-file))
+              (io/copy bs output-file)))))))))
 
 (defn download-deps
   ([opts]
