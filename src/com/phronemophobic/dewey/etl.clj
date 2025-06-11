@@ -255,7 +255,7 @@
          (if-let [path (:cache output)]
            (let [tar-file (tar-gz! (io/file release-dir path))
                  key (str/join "/"
-                               [cache-key-prefix path])]
+                               [cache-key-prefix (.getName tar-file)])]
              (upload-file release-id release-dir tar-file)
              (s3/put-object bucket
                             key
