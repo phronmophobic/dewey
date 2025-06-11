@@ -32,7 +32,7 @@
    {:f #'dewey/update-default-branches
     :outputs [{:file "default-branches.edn"}]}
    {:f #'dewey/download-deps
-    :outputs [{:dir "deps"}]}
+    :outputs [{:dir "deps"} {:cache "file-cache.db"}]}
    {:f #'dewey/update-tag-index
     :outputs [{:file "deps-tags.edn"}]}
    {:f #'dewey/update-available-git-libs-index
@@ -40,6 +40,7 @@
 
 (def bucket "com-phronemophobic-dewey")
 (def key-prefix "releases")
+(def cache-key-prefix "cache")
 
 (defn get-object [key]
   (try
@@ -114,25 +115,43 @@
   (let [release-dir (dewey/release-dir release-id)]
     (doseq [{:keys [outputs]} steps
             output outputs]
-      (let [path (if-let [dir (:dir output)]
-                   (str dir ".tar.gz")
-                   (str (:file output) ".gz"))
-            key (clojure.string/join "/"
-                                     [key-prefix release-id path])
-            _ (print "downloading " key " ... ")
-            response (get-object key)
-            out-path (io/file release-dir path)
-            ]
-        (if response
-          (do
-            (with-open [os (io/output-stream out-path)
-                        is (:input-stream response)]
-              (io/copy is os))
-            (if (:dir output)
+      (if-let [path (:cache output)]
+        (let [tar-path (str path ".tar.gz")
+              response (or (get-object (str/join 
+                                        "/"
+                                        [key-prefix release-id tar-path]))
+                           (get-object (str/join 
+                                        "/"
+                                        [cache-key-prefix tar-path])))
+              out-path (io/file release-dir tar-path)]
+          (if response
+            (do
+              (with-open [os (io/output-stream out-path)
+                          is (:input-stream response)]
+                (io/copy is os))
               (untar-gz! out-path)
-              (ungz! out-path))
-            (println "done."))
-          (println "not found."))))))
+              (println "done."))
+            (println "not found.")))
+
+        (let [path (if-let [dir (:dir output)]
+                     (str dir ".tar.gz")
+                     (str (:file output) ".gz"))
+              key (clojure.string/join "/"
+                                       [key-prefix release-id path])
+              _ (print "downloading " key " ... ")
+              response (get-object key)
+              out-path (io/file release-dir path)
+              ]
+          (if response
+            (do
+              (with-open [os (io/output-stream out-path)
+                          is (:input-stream response)]
+                (io/copy is os))
+              (if (:dir output)
+                (untar-gz! out-path)
+                (ungz! out-path))
+              (println "done."))
+            (println "not found.")))))))
 
 (defn analyzed-repos
   "Checks s3 for already uploaded analysis for this release."
@@ -205,14 +224,43 @@
   ([]
    (run (str (random-uuid))))
   ([release-id]
-   (let [opts {:release-id release-id}]
+   (run release-id steps))
+  ([release-id steps]
+   (let [opts {:release-id release-id}
+         release-dir (dewey/release-dir release-id)]
      (prn release-id)
      (doseq [{:keys [f outputs] :as step} steps]
        (prn "starting step: " step)
+       
+       ;; download caches
+       (doseq [output outputs]
+         (when-let [path (:cache output)]
+           (let [tar-path (str path ".tar.gz")
+                 response (or (get-object (str/join 
+                                           "/"
+                                           [key-prefix release-id tar-path]))
+                              (get-object (str/join 
+                                           "/"
+                                           [cache-key-prefix tar-path])))
+                 out-path (io/file release-dir tar-path)]
+             (when response
+               (with-open [os (io/output-stream out-path)
+                           is (:input-stream response)]
+                 (io/copy is os))
+               (untar-gz! out-path)))))
+       
        (f opts)
        ;; upload compressed files to s3
-       (let [release-dir (dewey/release-dir release-id)]
-         (doseq [output outputs]
+       (doseq [output outputs]
+         (if-let [path (:cache output)]
+           (let [tar-file (tar-gz! (io/file release-dir path))
+                 key (str/join "/"
+                               [cache-key-prefix path])]
+             (upload-file release-id release-dir tar-file)
+             (s3/put-object bucket
+                            key
+                            tar-file))
+           ;;else
            (if-let [dir (:dir output)]
              (let [tar-file (tar-gz! (io/file release-dir dir))]
                (upload-file release-id release-dir tar-file))

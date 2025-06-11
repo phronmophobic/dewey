@@ -2,6 +2,7 @@
   (:require [com.phronemophobic.dewey.util
              :refer [copy read-edn with-auth ->edn]
              :as util]
+            [datalevin.core :as d]
             [clj-http.client :as http]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
@@ -206,6 +207,75 @@
            (sanitize (:name repo))
            fname))
 
+
+(defn ^:private do-download
+  ([url]
+   (do-download url 3))
+  ([url retries]
+   (loop [retries retries]
+     (let [result
+           (try+
+            (let [result (http/request (with-auth
+                                        {:url url
+                                         :method :get
+                                         :as :stream}))
+                  bao (java.io.ByteArrayOutputStream.)]
+              (copy (:body result)
+                    bao
+                    ;; limit file sizes to 50kb
+                    (* 50 1024))
+              (.close (:body result))
+              (.toByteArray bao))
+            (catch [:status 500] e
+              ::error)
+            (catch [:status 502] e
+              ::error)
+            (catch [:status 503] e
+              ::error)
+            (catch [:status 504] e
+              ::error)
+            (catch [:status 429] e
+              (dotimes [i 60]
+                (println (- 60 i) " minutes until next chunk.")
+                (Thread/sleep (* 1000 60)))
+              ::error)
+            (catch [:status 404] {:keys [body]}
+              ::missing)
+            (catch [:type :max-bytes-limit-exceeded] _
+              ::too-big))]
+       (if (= result ::error)
+         (if (pos? retries)
+           (recur (dec retries))
+           (throw (Exception. "too many retries. quitting")))
+         result)))))
+
+(def ^:private file-cache-table "file-cache-table")
+(defn ^:private get-file [db k]
+  (d/get-value db file-cache-table k))
+
+(defn ^:private put-file [db k bs]
+  (d/transact-kv
+   db
+   [[:put file-cache-table k bs]]))
+
+(defn ^:private lookup-file [db k compute]
+  (if-let [bs (get-file db k)]
+    bs
+    ;; else
+    (let [val (compute)]
+      (put-file db k val)
+      val)))
+
+(defmacro ^:private with-file-cache-db [[db release-id] & body ]
+  `(let [~db (doto (d/open-kv (-> (io/file (release-dir ~release-id)
+                                           "file-cache.db")
+                                  (.getCanonicalPath)))
+               (d/open-dbi file-cache-table))]
+     (try
+       ~@body
+       (finally
+         (d/close-kv ~db)))))
+
 (defn download-file
   ([{:keys [repos
             fname
@@ -215,46 +285,37 @@
                 fname
                 dirname))
    (let [repo-count (count repos)
-         ;; default rate limit is 5k/hour
-         ;; aiming for 4.5k/hour since there's no good feedback mechanism
-         chunks (partition-all 4500
-                               (map-indexed vector repos))
          fname-dir (io/file (release-dir release-id) dirname)]
      (.mkdirs fname-dir)
-     (doseq [[chunk sleep?] (map vector
-                                 chunks
-                                 (concat (map (constantly true) (butlast chunks))
-                                         [false]))]
-       (doseq [[i repo] chunk]
-         (try+
-          (let [name (:name repo)
-                owner (-> repo :owner :login)
-                _ (print i "/" repo-count  " checking " name owner "...")
-                ;; add retries?
-                result (http/request (with-auth
-                                       {:url (fname-url repo fname)
-                                        :method :get
-                                        :as :stream}))
-                output-file (repo->file repo fname-dir fname)]
-            (.mkdirs (.getParentFile output-file))
-            (println "found.")
-            (copy (:body result)
-                  output-file
-                  ;; limit file sizes to 50kb
-
-                  (* 50 1024))
-            (.close (:body result)))
-          (catch [:status 404] {:keys [body]}
-            (println "not found" ))
-          (catch [:type :max-bytes-limit-exceeded] _
-            (println "file too big! skipping..."))))
-
-       (when sleep?
-         (println "sleeping for an hour")
-         ;; sleep an hour
-         (dotimes [i 60]
-           (println (- 60 i) " minutes until next chunk.")
-           (Thread/sleep (* 1000 60))))))))
+     
+     (with-file-cache-db
+         [db release-id]
+       (doseq [[i repo] (map-indexed vector repos)]
+         (let [name (:name repo)
+               owner (-> repo :owner :login)
+               _ (print i "/" repo-count  " checking " name owner "...")
+               
+               url (fname-url repo fname)
+               k {:git/sha (:git/sha repo)
+                  :repo name
+                  :owner owner
+                  :file fname}
+               bs (db/lookup-file db k (fn [] (do-download url)))
+               
+               output-file (repo->file repo fname-dir fname)]
+           
+           (case bs
+             
+             ::too-big (println "file too big! skipping...")
+             ::missing (println "not found" )
+             
+             ;; else
+             (do
+               (when-not (bytes? bs)
+                 (throw (Exception. "expected byte array")))
+               (println "found.")
+               (.mkdirs (.getParentFile output-file))
+               (io/copy bs output-file)))))))))
 
 (defn download-deps
   ([opts]
