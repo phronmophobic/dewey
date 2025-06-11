@@ -50,8 +50,8 @@
 (def auth
   (cond
 
-    (.exists (io/file "secrets.edn"))
-    (-> (slurp "secrets.edn")
+    (.exists (io/file "../dewey/secrets.edn"))
+    (-> (slurp "../dewey/secrets.edn")
         (edn/read-string)
         :github
         ((fn [{:keys [user token]}]
