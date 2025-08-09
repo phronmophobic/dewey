@@ -128,14 +128,25 @@
            (catch [:status 503] e
              ::error)
            (catch [:status 504] e
-             ::error))]
-      (if (= result ::error)
+             ::error)
+           (catch [:status 403] e
+             (let [body (:body e)]
+               (if (and (string? body)
+                        (str/includes? body "You have exceeded a secondary rate limit. Please wait a few minutes before you try again"))
+                 ::secondary-rate-limit
+                 ;; else
+                 ::error))))]
+      (if (#{::error ::secondary-rate-limit} result)
         (let [error-count (get m ::error-count 0)]
           (if (< error-count 3)
-            (do
+            (let [sleep-ms (if (= result ::secondary-rate-limit)
+                             ;; wait 15 minutes
+                             (* 1000 60 15)
+                             ;; else
+                             1000)]
               ;; sleep for a second and then retry
-              (prn "received 50X error. retrying...")
-              (Thread/sleep 1000)
+              (prn "received error. retrying in " sleep-ms "... ")
+              (Thread/sleep sleep-ms)
               (recur (assoc m ::error-count (inc error-count))))
             (throw (ex-info "Failed after retries"
                             {:k m}))))
