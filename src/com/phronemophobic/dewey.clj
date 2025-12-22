@@ -118,38 +118,36 @@
 
 (defn with-retries [step]
   (fn [m]
-    (let [result
+    (let [[result err]
           (try+
-           (step m)
+            [(step m) nil]
            (catch [:status 500] e
-             ::error)
+             [nil e])
            (catch [:status 502] e
-             ::error)
+             [nil e])
            (catch [:status 503] e
-             ::error)
+             [nil e])
            (catch [:status 504] e
-             ::error)
+             [nil e])
            (catch [:status 403] e
-             (let [body (:body e)]
-               (if (and (string? body)
-                        (str/includes? body "You have exceeded a secondary rate limit. Please wait a few minutes before you try again"))
-                 ::secondary-rate-limit
-                 ;; else
-                 ::error))))]
-      (if (#{::error ::secondary-rate-limit} result)
+             [nil e]
+             #_(let [body (:body e)]
+                 (if (and (string? body)
+                          (str/includes? body "You have exceeded a secondary rate limit. Please wait a few minutes before you try again"))
+                   ::secondary-rate-limit
+                   ;; else
+                   ::error))))]
+      (if err
         (let [error-count (get m ::error-count 0)]
           (if (< error-count 3)
-            (let [sleep-ms (if (= result ::secondary-rate-limit)
-                             ;; wait 15 minutes
-                             (* 1000 60 15)
-                             ;; else
-                             1000)]
-              ;; sleep for a second and then retry
+            (let [;; wait 15 minutes
+                  sleep-ms (* 1000 60 15)]
+              ;; sleep and then retry
               (prn "received error. retrying in " sleep-ms "... ")
               (Thread/sleep sleep-ms)
               (recur (assoc m ::error-count (inc error-count))))
-            (throw (ex-info "Failed after retries"
-                            {:k m}))))
+            (throw err)))
+        ;; else, no error
         result))))
 
 (defn find-clojure-repos []
