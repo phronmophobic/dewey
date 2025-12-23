@@ -146,7 +146,7 @@
               (prn "received error. retrying in " sleep-ms "... ")
               (Thread/sleep sleep-ms)
               (recur (assoc m ::error-count (inc error-count))))
-            (throw err)))
+            (throw+ err)))
         ;; else, no error
         result))))
 
