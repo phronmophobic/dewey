@@ -108,7 +108,7 @@
                                (Long/parseLong)
                                (Instant/ofEpochSecond))]
       (println "limit remaining " rate-limit-remaining)
-      (when (<= rate-limit-remaining 0)
+      (when (<= rate-limit-remaining 1)
         (let [duration (Duration/between (Instant/now)
                                          rate-limit-reset)
               duration-ms (+ 1000 (.toMillis duration))]
