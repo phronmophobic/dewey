@@ -9,6 +9,9 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip
 unzip awscliv2.zip
 ./aws/install
 
+# prefill some maven deps
+aws --profile dewey s3 sync s3://com-phronemophobic-dewey/snapshots/  ~/.m2/repository/
+
 curl -O https://download.clojure.org/install/linux-install.sh
 chmod 755 linux-install.sh
 ./linux-install.sh
