@@ -10,7 +10,7 @@ unzip awscliv2.zip
 ./aws/install
 
 # prefill some maven deps
-aws s3 sync s3://com-phronemophobic-dewey/snapshots/  ~/.m2/repository/
+aws s3 sync s3://com-phronemophobic-dewey/snapshots/  ~ubuntu/.m2/repository/
 
 curl -O https://download.clojure.org/install/linux-install.sh
 chmod 755 linux-install.sh
