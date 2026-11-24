@@ -10,7 +10,6 @@
             [slingshot.slingshot :refer [try+ throw+]])
   (:import java.time.Instant
            java.time.Duration
-           java.time.format.DateTimeFormatter
            java.io.PushbackReader))
 
 
@@ -66,7 +65,7 @@
           "object" sha
           "type" "commit",}
          :as :json}
-        make-tag-response (http/request (with-auth make-tag-req))
+        _make-tag-response (http/request (with-auth make-tag-req))
         ;; _ (clojure.pprint/pprint make-tag-response)
 
         make-release-req

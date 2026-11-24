@@ -155,11 +155,6 @@ Passes the given strings to Runtime.exec() to launch a sub-process.
       (catch Exception e))))
 
 
-(defn ->edn [o]
-  (binding [*print-namespace-maps* false
-            *print-length* false]
-    (pr-str o)))
-
 (defn save-obj-edn-gz [fname obj]
   (with-open [os (io/output-stream fname)
               gs (GZIPOutputStream. os)
